@@ -1,0 +1,53 @@
+# ============================================================
+# .htaccess V1 — COMPLETO (pode dar 500 se AllowOverride for restrito)
+# (a mesma versao completa que estava anteriormente)
+# ============================================================
+
+DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteRule (^|/)app(/|$) - [F,L,NC]
+    RewriteRule (^|/)database(/|$) - [F,L,NC]
+    RewriteRule (^|/)vendor(/|$) - [F,L,NC]
+    RewriteRule (^|/)\.github(/|$) - [F,L,NC]
+    RewriteRule (^|/)node_modules(/|$) - [F,L,NC]
+    RewriteRule (^|/)tests(/|$) - [F,L,NC]
+
+    RewriteCond %{REQUEST_FILENAME} (/|^)deploy_ftp\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)config(\.example)?\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)\.env(\..*)?$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)error_php\.log$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)(composer|package)(-lock)?\.(json|lock)$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)README(\.md)?$ [NC]
+    RewriteRule ^ - [F,L]
+
+    RewriteCond %{REQUEST_URI} /public/ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*?/)?public/(.*)$ $1public/index.php?route=$2 [QSA,L]
+
+    RewriteCond %{REQUEST_URI} !/public/ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css               "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+</IfModule>

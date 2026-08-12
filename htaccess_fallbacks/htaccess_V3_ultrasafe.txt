@@ -1,0 +1,24 @@
+# ============================================================
+# .htaccess V3 — ULTRA SAFE (0 risco de 500 Internal Server Error)
+#
+# Use este se a versao completa der 500.
+# Contem APENAS o minimo necessario para o sistema RODAR.
+# Nao tem compressao, cache, headers de seguranca ou coisa extra.
+# Nao tem IfModule aninhados, nao tem diretiva suspeita.
+# ============================================================
+
+DirectoryIndex index.php index.html
+
+# ----- Regras essenciais -----
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Bloqueia pastas internas
+    RewriteRule (^|/)app(/|$) - [F,L]
+    RewriteRule (^|/)database(/|$) - [F,L]
+
+    # Tudo que nao for arquivo fisico cai no public/index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
+</IfModule>

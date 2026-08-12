@@ -1,0 +1,36 @@
+# ============================================================
+# .htaccess V2 — SEGURO (bloqueios extras + headers, sem cache/compressao)
+#
+# Se V3 funcionar, voce pode testar esta.
+# ============================================================
+
+DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Bloqueia pastas internas
+    RewriteRule (^|/)app(/|$) - [F,L]
+    RewriteRule (^|/)database(/|$) - [F,L]
+    RewriteRule (^|/)vendor(/|$) - [F,L]
+    RewriteRule (^|/)node_modules(/|$) - [F,L]
+    RewriteRule (^|/)\.github(/|$) - [F,L]
+
+    # Bloqueia arquivos sensiveis
+    RewriteCond %{REQUEST_FILENAME} deploy_ftp\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)config\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)config\.example\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)error_php\.log$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)\.env [NC]
+    RewriteRule ^ - [F,L]
+
+    # Roteamento principal (subpasta compativel)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
