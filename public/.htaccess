@@ -1,0 +1,22 @@
+# ============================================================
+# .htaccess dentro de /public (ponto de entrada real)
+# Aqui as regras são MAIS SIMPLES e o site funciona
+# mesmo se o DOMÍNIO já estiver APONTADO para /public
+# ============================================================
+
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # URL amigável: qualquer rota cai no index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
+</IfModule>
+
+# Segurança dos arquivos PHP dentro de /public (só index.php)
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

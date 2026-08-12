@@ -1,0 +1,11 @@
+# ============================================================
+# .htaccess dentro da pasta /app — BLOQUEIA TUDO
+# Garantia extra para não expor Models/Views/Controllers via URL
+# ============================================================
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>
