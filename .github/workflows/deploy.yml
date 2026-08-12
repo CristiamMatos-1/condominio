@@ -1,0 +1,55 @@
+name: Deploy para cPanel (FTP)
+
+# Dispara automaticamente ao fazer push na branch main
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Permite rodar manualmente pelo GitHub
+
+# ============================================================
+# Como configurar:
+# 1. No seu repositório GitHub -> Settings -> Secrets -> Actions
+# 2. Adicione os 5 Secrets abaixo com seus dados de cPanel/FTP:
+#    - FTP_HOST      : ex. ftp.seu-dominio.com.br
+#    - FTP_USERNAME  : ex. seuftp@seu-dominio.com.br
+#    - FTP_PASSWORD  : sua senha de FTP
+#    - FTP_PORT      : 21 (padrao)
+#    - FTP_REMOTE_DIR: /public_html (ou a pasta alvo do seu cPanel)
+# ============================================================
+
+jobs:
+  deploy:
+    name: Deploy via FTP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: 2. Copiar config.example.php para config.php (template)
+        run: |
+          cp config.example.php config.php.tmp
+          echo "config.php criado como TEMPLO - edite manualmente no cPanel com credenciais reais"
+
+      - name: 3. Deploy arquivos via FTP (apenas os alterados)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
+          protocol: ftp
+          dangerous-clean-slate: false   # FALSE = não apaga arquivos no servidor (seguro)
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.github/**
+            **/.DS_Store
+            **/README.md
+            config.php
+            .env
+
+      - name: 4. Mensagem de conclusão
+        run: echo "Deploy finalizado! Acesse seu site e configure o config.php no FTP com as credenciais reais."

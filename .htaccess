@@ -1,0 +1,71 @@
+# ============================================================
+# Apache .htaccess - Sistema de Assembleias
+# Compatível com cPanel / hospedagem compartilhada
+# ============================================================
+
+# ----- Desativar listagem de diretórios -----
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# ----- URL amigável: redireciona tudo para public/index.php -----
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Se já estiver dentro de /public, ignora
+    RewriteCond %{REQUEST_URI} ^/public/ [NC]
+    RewriteRule ^public/(.*)$ public/index.php?route=$1 [QSA,L]
+
+    # Redireciona tudo que não for arquivo/diretório para public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
+
+    # Forçar HTTPS (descomente em produção)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+
+# ----- Proteger acesso direto às pastas internas -----
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^/(app|database)/">
+        Require all denied
+    </DirectoryMatch>
+    <FilesMatch "^(config\.php|\.env|\.git)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+# ----- Segurança de headers -----
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header unset X-Powered-By
+</IfModule>
+
+# ----- Desativar execução de scripts em uploads -----
+<IfModule mod_mime.c>
+    <DirectoryMatch "^/.*/(uploads|files)/">
+        AddType text/plain .php .phtml .php5 .php7 .phar .js .html
+    </DirectoryMatch>
+</IfModule>
+
+# ----- Compressão (opcional) -----
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/json application/xml
+</IfModule>
+
+# ----- Cache de assets -----
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css               "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    ExpiresByType image/png              "access plus 1 month"
+    ExpiresByType image/jpeg             "access plus 1 month"
+    ExpiresByType image/gif              "access plus 1 month"
+    ExpiresByType image/svg+xml          "access plus 1 month"
+    ExpiresByType image/x-icon           "access plus 1 year"
+</IfModule>
