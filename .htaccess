@@ -1,85 +1,76 @@
 # ============================================================
-# Apache .htaccess - RAIZ do Projeto
-# 100% Compatível com cPanel / hospedagem compartilhada
-# Auto-detecta subpasta via RewriteBase
+# .htaccess MINIMALISTA - 100% COMPATIVEL COM QUALQUER CPANEL
+#
+# Motivo: O erro 403 duplo ("Additionally, a 403 ...") SEMPRE
+# acontece quando alguma diretiva AQUI VIOLA o AllowOverride do
+# Apache (ex.: "Options +SymLinksIfOwnerMatch" ou "Require all
+# denied" quando mod_authz_core esta desabilitado para .htaccess).
+#
+# REGRAS PARA ESSE ARQUIVO NUNCA QUEBRAR:
+#  1) Nunca use a diretiva "Options"
+#  2) Nunca use DirectoryMatch / Files / FilesMatch com Require
+#  3) Tudo que for reescrita fica DENTRO de <IfModule mod_rewrite.c>
+#  4) Nao configure ErrorDocument, RewriteBase ou nada alem do basico
 # ============================================================
 
-Options -Indexes +SymLinksIfOwnerMatch
-DirectoryIndex index.php
-
+# ======================= SEGURANCA VIA REGRAS DE REWRITE ======
+# (esse metodo funciona em QUALQUER hospedagem pois usa soh
+#  mod_rewrite, o modulo que SEMPRE esta habilitado no cPanel)
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
 
-    # ============================================================
-    # BLOQUEIO de PASTAS INTERNAS
-    # ============================================================
-    RewriteRule ^(app|database|vendor|\.github|node_modules)/ - [F,L,NC]
+    # --- Bloqueia pastas internas (RETORNA 403 via flag [F]) ---
+    RewriteRule ^(app|database|vendor|\.github|node_modules|tests)/ - [F,L,NC]
 
-    # Bloquear arquivos sensiveis
-    RewriteRule (^|/)(\.env|\.git|\.gitignore|\.gitmodules|config\.php|install\.php|deploy_ftp\.php|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock)($|/) - [F,L,NC]
+    # --- Bloqueia arquivos sensiveis por PADRAO DE NOME ---
+    RewriteCond %{REQUEST_FILENAME} (^|/)install\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)deploy_ftp\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)config(\.example)?\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)\.env(\..*)?$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)\.git [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)(composer|package)(-lock)?\.(json|lock)$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)error_php\.log$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (^|/)README(\.md)?$ [NC]
+    RewriteRule ^ - [F,L]
 
-    # ============================================================
-    # REDIRECIONAMENTO para /public
-    # ============================================================
-    # Se a URL ja comeca por /public/, deixa passar reescrevendo internamente
-    RewriteCond %{REQUEST_URI} ^/public/ [NC]
-    RewriteRule ^public/(.*)$ public/index.php?route=$1 [QSA,L]
-
-    # Arquivos fisicos nao existentes -> cai no public/index.php
+    # --- PONTO DE ENTRADA: Tudo cai em /public/index.php ---
+    #     (exceto arquivos estaticos que existem de verdade)
+    RewriteCond %{REQUEST_URI} !^/public/ [NC]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
 
-    # ----- (OPCIONAL) Forcar HTTPS - descomente em producao -----
-    # RewriteCond %{HTTPS} !=on
-    # RewriteCond %{HTTP:X-Forwarded-Proto} !=https
-    # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    # Se ja acessar /public/ diretamente
+    RewriteCond %{REQUEST_URI} ^/public/ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^public/(.*)$ public/index.php?route=$1 [QSA,L]
 </IfModule>
 
-# ============================================================
-# SEGURANCA - bloqueio por arquivo
-# ============================================================
-<FilesMatch "^(\.htaccess|\.htpasswd|config\.php|install\.php|deploy_ftp\.php|\.env|\.git.*)$">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Deny from all
-    </IfModule>
-</FilesMatch>
-
-# ============================================================
-# HEADERS DE SEGURANCA
-# ============================================================
+# ======================= SEGURANCA VIA CABECALHOS =============
 <IfModule mod_headers.c>
+    Header always unset X-Powered-By
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always unset X-Powered-By
 </IfModule>
 
-# ============================================================
-# COMPRESSAO E CACHE (nao criticos, IfModule)
-# ============================================================
+# ======================= CACHE / COMPRESSAO ===================
 <IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/javascript application/json application/xml
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
 </IfModule>
 
 <IfModule mod_expires.c>
     ExpiresActive On
-    ExpiresByType text/css               "access plus 1 week"
-    ExpiresByType application/javascript "access plus 1 week"
     ExpiresByType image/png              "access plus 1 month"
     ExpiresByType image/jpeg             "access plus 1 month"
-    ExpiresByType image/gif              "access plus 1 month"
-    ExpiresByType image/svg+xml          "access plus 1 month"
+    ExpiresByType text/css               "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
     ExpiresByType image/x-icon           "access plus 1 year"
 </IfModule>
 
-<IfModule mod_headers.c>
-    Header unset ETag
-</IfModule>
-FileETag None
+# ======================= FIM DO ARQUIVO =======================
+# Observacao: Nao ha "DirectoryIndex index.php" aqui pois o
+# Apache do cPanel ja o define globalmente. Se quiser adicionar
+# de qualquer forma, use abaixo. O risco de quebra e zero.
+# DirectoryIndex index.php index.html
