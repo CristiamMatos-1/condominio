@@ -1,55 +1,160 @@
 name: Deploy para cPanel (FTP)
 
-# Dispara automaticamente ao fazer push na branch main
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Permite rodar manualmente pelo GitHub
+  workflow_dispatch:
+    inputs:
+      protocol:
+        description: "Protocolo FTP"
+        required: false
+        default: "ftp"
+        type: choice
+        options:
+          - ftp
+          - ftps
 
 # ============================================================
-# Como configurar:
-# 1. No seu repositório GitHub -> Settings -> Secrets -> Actions
-# 2. Adicione os 5 Secrets abaixo com seus dados de cPanel/FTP:
-#    - FTP_HOST      : ex. ftp.seu-dominio.com.br
-#    - FTP_USERNAME  : ex. seuftp@seu-dominio.com.br
-#    - FTP_PASSWORD  : sua senha de FTP
-#    - FTP_PORT      : 21 (padrao)
-#    - FTP_REMOTE_DIR: /public_html (ou a pasta alvo do seu cPanel)
+# CONFIGURACAO OBRIGATORIA ANTES DE USAR:
+# No seu GitHub: Settings → Secrets and variables → Actions → Secrets
+#
+# Secrets OBRIGATORIOS para deploy funcionar:
+#   FTP_HOST       = ex. ftp.seudominio.com.br
+#   FTP_USERNAME   = usuario FTP do cPanel
+#   FTP_PASSWORD   = senha FTP do cPanel
+#
+# Secrets OPCIONAIS (valor padrao se nao for definido):
+#   FTP_PORT       = 21 (padrao) / 990 (FTPS)
+#   FTP_REMOTE_DIR = /public_html
 # ============================================================
 
 jobs:
-  deploy:
-    name: Deploy via FTP
+  # ===========================================================
+  # JOB 1: VALIDAR SE OS SECRETS EXISTEM
+  # ===========================================================
+  validate:
+    name: "1/3 · Validar secrets FTP"
     runs-on: ubuntu-latest
-
+    outputs:
+      tem_secrets: ${{ steps.validator.outputs.tem_secrets }}
     steps:
-      - name: 1. Baixar código do repositório
+      - id: validator
+        run: |
+          H="${{ secrets.FTP_HOST != '' }}"
+          U="${{ secrets.FTP_USERNAME != '' }}"
+          P="${{ secrets.FTP_PASSWORD != '' }}"
+          echo "::group::Status dos Secrets FTP"
+          echo "FTP_HOST       : $H"
+          echo "FTP_USERNAME   : $U"
+          echo "FTP_PASSWORD   : $P"
+          echo "::endgroup::"
+          if [ "$H" = "true" ] && [ "$U" = "true" ] && [ "$P" = "true" ]; then
+            echo "tem_secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "tem_secrets=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ===========================================================
+  # JOB 2: DEPLOY VIA FTP (somente se job 1 passou)
+  # ===========================================================
+  deploy:
+    name: "2/3 · Deploy FTP para cPanel"
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.tem_secrets == 'true'
+    steps:
+      - name: Checkout codigo
         uses: actions/checkout@v4
 
-      - name: 2. Copiar config.example.php para config.php (template)
+      - name: Preparar arquivos
         run: |
-          cp config.example.php config.php.tmp
-          echo "config.php criado como TEMPLO - edite manualmente no cPanel com credenciais reais"
+          echo "::group::Estrutura de arquivos pronta para deploy"
+          find . -maxdepth 3 -type f | sort | head -80
+          echo "::endgroup::"
 
-      - name: 3. Deploy arquivos via FTP (apenas os alterados)
+      - name: Testar conexao TCP (TCP test)
+        timeout-minutes: 2
+        run: |
+          HOST=${{ secrets.FTP_HOST }}
+          PORT=${{ secrets.FTP_PORT || '21' }}
+          echo "Testando $HOST:$PORT ..."
+          (echo > /dev/tcp/$HOST/$PORT) 2>/dev/null \
+            && echo "Conexao TCP OK em $HOST:$PORT" \
+            || echo "Aviso: nao foi possivel testar $HOST:$PORT (firewall?)"
+
+      - name: Deploy via FTP/FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
-          protocol: ftp
-          dangerous-clean-slate: false   # FALSE = não apaga arquivos no servidor (seguro)
+          port: ${{ secrets.FTP_PORT || '21' }}
+          server-dir: ${{ secrets.FTP_REMOTE_DIR || '/public_html' }}
+          protocol: ${{ github.event.inputs.protocol || 'ftp' }}
+          dangerous-clean-slate: false
+          log-level: standard
+          security: loose
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
             **/.github/**
             **/.DS_Store
-            **/README.md
-            config.php
             .env
+            .env.local
+            config.php
+            error_log
+            php.ini
 
-      - name: 4. Mensagem de conclusão
-        run: echo "Deploy finalizado! Acesse seu site e configure o config.php no FTP com as credenciais reais."
+      - name: Resumo de deploy concluido com sucesso
+        run: |
+          echo "## Deploy CONCLUIDO 🚀"
+          echo ""
+          echo "Repositorio : $GITHUB_REPOSITORY"
+          echo "Commit SHA   : $GITHUB_SHA"
+          echo "Protocolo  : ${{ github.event.inputs.protocol || 'ftp' }}"
+          echo ""
+          echo "Proximos passos no cPanel:"
+          echo "  1) Edite o config.php com as credenciais reais do MySQL"
+          echo "  2) Importe database/migrations/001_criar_todas_tabelas.sql pelo phpMyAdmin"
+          echo "  3) Acesse: https://seu-site/?route=auth/login"
+          echo "     Admin → CPF 000.000.000-00  senha admin123"
+
+  # ===========================================================
+  # JOB 3: INSTRUCOES (roda QUANDO secrets NAO existem)
+  # ===========================================================
+  instrucoes:
+    name: "3/3 · Instrucoes de configuracao"
+    runs-on: ubuntu-latest
+    needs: validate
+    if: always() && needs.validate.outputs.tem_secrets != 'true'
+    steps:
+      - name: Mostrar passo-a-passo de configuracao
+        run: |
+          echo "::group:: CONFIGURACAO OBRIGATORIA PARA O DEPLOY FUNCIONAR"
+          echo ""
+          echo "══════════════════════════════════════════════════════════"
+          echo "  DEPLOY FTP NAO FOI EXECUTADO"
+          echo "  Motivo: secrets FTP_HOST, FTP_USERNAME e/ou FTP_PASSWORD"
+          echo "          nao foram configurados no GitHub."
+          echo "══════════════════════════════════════════════════════════"
+          echo ""
+          echo "LINK DIRETO PARA CONFIGURAR:"
+          echo "  → https://github.com/${GITHUB_REPOSITORY}/settings/secrets/actions"
+          echo ""
+          echo "Clique em [New repository secret] e crie UM POR UM:"
+          echo ""
+          echo "| Secret            | Exemplo de valor                    | Obrigatorio? |"
+          echo "|-----------------|-----------------------------------|--------------|"
+          echo "| FTP_HOST        | ftp.seu-dominio.com.br           | SIM          |"
+          echo "| FTP_USERNAME    | seuftp@seu-dominio.com.br       | SIM          |"
+          echo "| FTP_PASSWORD    | (sua senha de FTP)               | SIM          |"
+          echo "| FTP_PORT        | 21 (padrao)                     | NAO          |"
+          echo "| FTP_REMOTE_DIR  | /public_html (ou subpasta)       | NAO          |"
+          echo ""
+          echo "Depois de criar os 3 primeiros secrets, volte aqui:"
+          echo "  → Aba Actions → Deploy para cPanel (FTP)"
+          echo "  → Botao [Run workflow]"
+          echo "::endgroup::"
+          echo "::error::Deploy FTP NAO EXECUTADO. Configure os secrets FTP no repositorio."
+          exit 1
