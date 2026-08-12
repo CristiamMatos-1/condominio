@@ -1,33 +1,12 @@
-# ============================================================
-# .htaccess PRINCIPAL — VERSAO V3 ULTRA SAFE
-#
-# Esta versao NAO causa 500 Internal Server Error em NENHUM
-# cPanel brasileiro conhecido. Tem o minimo necessario.
-#
-# Se quiser depois adicionar headers, cache e compressao,
-# va na pasta htaccess_fallbacks/ e copie V2 depois que
-# confirmar que V3 funcionou.
-# ============================================================
+# .htaccess — Versao MINIMA (ZERO risco de 500, 9 linhas uteis)
+# Apenas ativa mod_rewrite basico. Mesmo que falhe, temos o
+# /index.php fallback na raiz que funciona SEM mod_rewrite.
 
-DirectoryIndex index.php index.html
+DirectoryIndex index.php public/index.php index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
-    # ---- Bloqueia pastas internas (para seguranca) ----
-    RewriteRule (^|/)app(/|$) - [F,L]
-    RewriteRule (^|/)database(/|$) - [F,L]
-
-    # ---- Bloqueia arquivos super sensiveis ----
-    RewriteCond %{REQUEST_FILENAME} deploy_ftp\.php$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)config\.php$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)\.env [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)error_php\.log$ [NC]
-    RewriteRule ^ - [F,L]
-
-    # ---- ROTEAMENTO: tudo que nao existe vai para public/index.php ----
-    # Isso funciona em RAIZ (/) ou em SUBPASTA (/condominio) IGUALMENTE.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
+    RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]
 </IfModule>

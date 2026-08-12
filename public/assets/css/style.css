@@ -1,35 +1,62 @@
+/* ============================================================
+   PALETA DE CORES OFICIAL · CONINFOMS Soluções em Tecnologia
+   Extraída de coninfoms.com.br em 12/08/2026 via DOM inspect.
+   ============================================================ */
 :root {
-    --color-bg: #F8F9FA;
-    --color-surface: #FFFFFF;
-    --color-text: #212529;
-    --color-text-muted: #6C757D;
-    --color-primary: #2563EB;
-    --color-primary-hover: #1D4ED8;
-    --color-primary-light: #DBEAFE;
+    /* === Base CONINFOMS (inspirada no corpo/navbar do site) === */
+    --color-bg:            #F9FAFB;   /* cinza-50  - body background do site */
+    --color-surface:       #FFFFFF;   /* branco   - cards, containers, header */
+    --color-surface-alt:   #F3F4F6;   /* gray-100 - fundos alternativos */
+
+    /* === Texto (tons Slate/Gray da CONINFOMS) === */
+    --color-text:          #1F2937;   /* gray-800 - corpo principal */
+    --color-text-muted:    #6B7280;   /* gray-500 - subtítulos/placeholders */
+    --color-text-soft:     #4B5563;   /* gray-600 - links do menu navbar */
+
+    /* === Azul Corporativo + Dourado (Acessibilidade idosos) === */
+    --color-primary:        #1E40AF;  /* blue-800  - botões primários, destaques */
+    --color-primary-hover:  #1E3A8A;  /* blue-900  - hover */
+    --color-primary-light:  #DBEAFE;  /* blue-100  - fundos + tags */
+    --color-secondary:      #D97706;  /* amber-600 - dourado, detalhes de acento */
+    --color-secondary-hover:#B45309;  /* amber-700 - hover dourado */
+    --color-secondary-light:#FEF3C7;  /* amber-100 - fundos + tags */
+    --color-accent:         #0EA5E9;  /* sky-500   - links/barras */
+
+    /* === Feedback padrão === */
     --color-success: #16A34A;
     --color-success-light: #DCFCE7;
-    --color-danger: #DC2626;
-    --color-danger-light: #FEE2E2;
+    --color-danger:  #DC2626;
+    --color-danger-light:  #FEE2E2;
     --color-warning: #D97706;
-    --color-warning-light: #FEF3C7;
-    --color-info: #0891B2;
-    --color-info-light: #CFFAFE;
-    --color-purple: #7C3AED;
-    --color-purple-light: #EDE9FE;
-    --color-border: #E5E7EB;
-    --color-border-dark: #D1D5DB;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.05);
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
+    --color-warning-light:#FEF3C7;
+    --color-info:    #0284C7;
+    --color-info-light:   #E0F2FE;
+
+    /* === Bordas / Sombras (iguais as do site coninfoms) === */
+    --color-border:      #E5E7EB;   /* gray-200 */
+    --color-border-dark: #D1D5DB;   /* gray-300 */
+    --color-footer-bg:   #1E293B;   /* slate-800 (rodapé) */
+    --color-footer-color:#FFFFFF;
+
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); /* header shadow do site */
+    --shadow-lg: 0 10px 25px -3px rgba(15,23,42,0.08), 0 4px 8px -4px rgba(15,23,42,0.05);
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+
+    /* === Espaçamento === */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --spacing-2xl: 3rem;
+
+    /* === Tipografia === */
+    --font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+    --font-heading: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    --transition: all 0.3s cubic-bezier(.4,0,.2,1);
 }
 
 * {
@@ -1470,3 +1497,508 @@ small {
         align-items: flex-start;
     }
 }
+
+/* ============================================================
+   CONINFOMS · UI Kit (componentes padronizados)
+   ============================================================ */
+
+/* ---------- Navbar Superior Responsiva ---------- */
+.navbar-topo {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+.nav-inner {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 0.9rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--color-text);
+    text-decoration: none;
+    font-family: var(--font-heading);
+}
+.nav-brand:hover { color: var(--color-primary); }
+.logo-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, #2563EB 100%);
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.4rem;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 6px 16px rgba(30,64,175,0.25);
+    border: 2px solid #fff;
+}
+.brand-title {
+    display: block;
+    font-size: 1.1rem;
+    letter-spacing: 0.03em;
+    color: var(--color-primary);
+    line-height: 1;
+}
+.brand-sub {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    line-height: 1.4;
+}
+.nav-toggle {
+    display: none;
+    margin-left: auto;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    cursor: pointer;
+    padding: 10px 9px;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: var(--transition);
+}
+.nav-toggle span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background: var(--color-text);
+    border-radius: 4px;
+    transition: transform 0.25s, opacity 0.2s;
+}
+.nav-menu {
+    margin-left: auto;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.nav-menu > li {
+    position: relative;
+}
+.nav-menu > li > a {
+    display: block;
+    padding: 0.55rem 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-soft);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.95rem;
+}
+.nav-menu > li > a:hover {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+.dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    min-width: 230px;
+    background: var(--color-surface);
+    list-style: none;
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: var(--transition);
+    z-index: 1001;
+}
+.has-dropdown:hover .dropdown,
+.has-dropdown:focus-within .dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.dropdown li a {
+    display: block;
+    padding: 0.6rem 0.8rem;
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+.dropdown li a:hover {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+/* ---------- Usuário e logout ---------- */
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-left: 0.6rem;
+    padding-left: 0.9rem;
+    border-left: 1px solid var(--color-border);
+    cursor: default;
+}
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-primary) 100%);
+    color: #fff;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+    text-transform: uppercase;
+}
+.user-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    max-width: 180px;
+}
+.user-info strong {
+    font-size: 0.92rem;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.user-info small {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.logout {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-soft);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+.logout:hover {
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
+}
+
+/* ---------- Breadcrumbs ---------- */
+.breadcrumbs {
+    padding: 0.6rem 0 0.9rem;
+    font-size: 0.85rem;
+}
+.breadcrumbs ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+.breadcrumbs li + li::before {
+    content: "›";
+    color: var(--color-text-muted);
+    padding-right: 0.45rem;
+    font-weight: 700;
+}
+.breadcrumbs a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+.breadcrumbs a:hover { text-decoration: underline; }
+.breadcrumbs .active {
+    color: var(--color-text-soft);
+    font-weight: 600;
+}
+
+/* ---------- Cards CONINFOMS ---------- */
+.card-ci {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+.card-ci:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    border-color: var(--color-border-dark);
+}
+.card-ci h2, .card-ci h3 {
+    font-family: var(--font-heading);
+    margin: 0 0 0.8rem;
+    color: var(--color-text);
+}
+
+/* ---------- Tabelas scroll horizontal (overflow container) ---------- */
+.table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+.table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    min-width: 680px;
+}
+
+/* ---------- Responsivo Navbar (<=768px) ---------- */
+@media (max-width: 768px) {
+    .nav-toggle { display: flex; }
+    .nav-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.1rem;
+        background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        box-shadow: var(--shadow-md);
+        padding: 0.6rem;
+        margin: 0;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+    }
+    .nav-menu.aberto {
+        max-height: 1200px;
+        overflow-y: auto;
+    }
+    .nav-menu > li > a {
+        padding: 0.8rem 1rem;
+        border-radius: var(--radius-md);
+    }
+    .dropdown {
+        position: static;
+        min-width: auto;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        margin-top: 0.35rem;
+        padding: 0.4rem 0 0.4rem 1.1rem;
+        border-left: 2px solid var(--color-primary-light);
+    }
+    .has-dropdown:hover .dropdown { transform: none; }
+    .nav-user {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0.4rem 0 0.2rem;
+        padding: 0.8rem;
+        border-left: 0;
+        border-top: 1px dashed var(--color-border);
+    }
+    .user-info { max-width: 100%; }
+    .logout { margin-left: auto; }
+    .brand-sub { display: none; }
+}
+
+/* ---------- Tela de Login CONINFOMS (nova identidade) ---------- */
+.login-ci {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 500px at -10% -10%, rgba(30,64,175,0.10) 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 0%, rgba(217,119,6,0.10) 0%, transparent 60%),
+      var(--color-bg);
+    display: grid;
+    place-items: center;
+    padding: 1.25rem;
+    font-family: var(--font-family);
+}
+.login-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    padding: 2.25rem 2rem 2rem;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+}
+.login-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    border-radius: 20px 20px 0 0;
+}
+.login-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 1.75rem;
+    text-align: center;
+}
+.login-logo .logo-circle {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    font-size: 1.7rem;
+}
+.login-logo h1 {
+    font-size: 1.45rem;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    color: var(--color-primary);
+    letter-spacing: 0.02em;
+    margin: 0;
+}
+.login-logo h2 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+/* ---------- Formulário ---------- */
+.form-group-ci {
+    margin-bottom: 1.2rem;
+}
+.form-group-ci label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--color-text);
+    margin-bottom: 0.45rem;
+}
+.form-group-ci .hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+}
+.input-ci {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 1.5px solid var(--color-border-dark);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: 1rem;
+    color: var(--color-text);
+    font-family: inherit;
+    transition: var(--transition);
+    outline: none;
+}
+.input-ci:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--color-primary-light);
+    background: #fff;
+}
+.btn-ci {
+    width: 100%;
+    padding: 0.95rem 1rem;
+    border-radius: var(--radius-md);
+    border: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: 0.01em;
+}
+.btn-ci-primary {
+    background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(30,64,175,0.28);
+}
+.btn-ci-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(30,64,175,0.33);
+    filter: brightness(1.05);
+}
+.btn-ci-secondary {
+    background: var(--color-surface-alt);
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border-dark);
+}
+.btn-ci-secondary:hover {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+.btn-ci-success {
+    background: linear-gradient(180deg, var(--color-success) 0%, #15803D 100%);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(22,163,74,0.28);
+}
+.btn-ci-danger {
+    background: linear-gradient(180deg, var(--color-danger) 0%, #B91C1C 100%);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(220,38,38,0.25);
+}
+.btn-ci[disabled], .btn-ci:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+    filter: grayscale(0.2);
+}
+
+.login-divider {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    margin: 1.1rem 0 0.3rem;
+    position: relative;
+}
+.login-divider::before, .login-divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 38%;
+    height: 1px;
+    background: var(--color-border);
+}
+.login-divider::before { left: 0; } .login-divider::after { right: 0; }
+
+.login-footer-ci {
+    text-align: center;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px dashed var(--color-border);
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+}
+.login-footer-ci strong { color: var(--color-primary); }
+
+/* ---------- Avisos / Alertas (nova identidade) ---------- */
+.alert-ci {
+    padding: 0.9rem 1.1rem;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: 0.92rem;
+    margin-bottom: 1.1rem;
+    border: 1px solid transparent;
+}
+.alert-ci-info    { background: var(--color-info-light);    color: #075985; border-color: #7DD3FC; }
+.alert-ci-success { background: var(--color-success-light); color: #166534; border-color: #86EFAC; }
+.alert-ci-warning { background: var(--color-warning-light); color: #92400E; border-color: #FCD34D; }
+.alert-ci-danger  { background: var(--color-danger-light);  color: #991B1B; border-color: #FCA5A5; }
