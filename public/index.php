@@ -2,16 +2,6 @@
 
 require_once __DIR__ . '/../config.php';
 
-$modelsPath = __DIR__ . '/../app/Models/';
-foreach (glob($modelsPath . '*.php') as $file) {
-    require_once $file;
-}
-
-$controllersPath = __DIR__ . '/../app/Controllers/';
-foreach (glob($controllersPath . '*.php') as $file) {
-    require_once $file;
-}
-
 $route = $_GET['route'] ?? 'auth/login';
 $route = trim($route, '/');
 

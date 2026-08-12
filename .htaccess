@@ -1,48 +1,46 @@
 # ============================================================
 # Apache .htaccess - RAIZ do Projeto
 # 100% Compatível com cPanel / hospedagem compartilhada
-# NÃO usa <DirectoryMatch> (proibido em .htaccess)
+# Auto-detecta subpasta via RewriteBase
 # ============================================================
 
-# ----- Desativar listagem de diretórios (o usuário já tinha erro de Options) -----
-Options -Indexes
+Options -Indexes +SymLinksIfOwnerMatch
 DirectoryIndex index.php
 
-# ============================================================
-# BLOQUEIO de PASTAS INTERNAS (RewriteRule - funciona em .htaccess)
-# ============================================================
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
 
-    # Bloquear acesso direto a app/, database/, vendor/
+    # ============================================================
+    # BLOQUEIO de PASTAS INTERNAS
+    # ============================================================
     RewriteRule ^(app|database|vendor|\.github|node_modules)/ - [F,L,NC]
 
-    # Bloquear arquivos sensíveis
-    RewriteRule (^|/)(\.env|\.git|\.gitignore|\.gitmodules|config\.php|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock)($|/) - [F,L,NC]
+    # Bloquear arquivos sensiveis
+    RewriteRule (^|/)(\.env|\.git|\.gitignore|\.gitmodules|config\.php|install\.php|deploy_ftp\.php|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock)($|/) - [F,L,NC]
 
     # ============================================================
-    # REDIRECIONAMENTO PARA A PASTA PUBLIC/
-    # Se o site estiver APONTANDO DIRETO para a raiz (ex. /public_html)
+    # REDIRECIONAMENTO para /public
     # ============================================================
-    # Se a URL já for /public/ deixa passar
+    # Se a URL ja comeca por /public/, deixa passar reescrevendo internamente
     RewriteCond %{REQUEST_URI} ^/public/ [NC]
     RewriteRule ^public/(.*)$ public/index.php?route=$1 [QSA,L]
 
-    # Tudo o que não for arquivo físico cai no public/index.php
+    # Arquivos fisicos nao existentes -> cai no public/index.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
 
-    # ----- (OPCIONAL) Forçar HTTPS — descomente em produção -----
+    # ----- (OPCIONAL) Forcar HTTPS - descomente em producao -----
     # RewriteCond %{HTTPS} !=on
     # RewriteCond %{HTTP:X-Forwarded-Proto} !=https
     # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 </IfModule>
 
 # ============================================================
-# SEGURANÇA - Bloqueio via FilesMatch (sem DirectoryMatch)
+# SEGURANCA - bloqueio por arquivo
 # ============================================================
-<FilesMatch "^(\.|\.)|(^config\.php$)|(^\.env$)">
+<FilesMatch "^(\.htaccess|\.htpasswd|config\.php|install\.php|deploy_ftp\.php|\.env|\.git.*)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -53,7 +51,7 @@ DirectoryIndex index.php
 </FilesMatch>
 
 # ============================================================
-# HEADERS DE SEGURANÇA
+# HEADERS DE SEGURANCA
 # ============================================================
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
@@ -64,7 +62,7 @@ DirectoryIndex index.php
 </IfModule>
 
 # ============================================================
-# COMPRESSÃO E CACHE (não críticos, envoltos em IfModule)
+# COMPRESSAO E CACHE (nao criticos, IfModule)
 # ============================================================
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/javascript application/json application/xml
@@ -81,7 +79,6 @@ DirectoryIndex index.php
     ExpiresByType image/x-icon           "access plus 1 year"
 </IfModule>
 
-# Desativar ETags
 <IfModule mod_headers.c>
     Header unset ETag
 </IfModule>

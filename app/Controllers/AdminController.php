@@ -116,6 +116,22 @@ class AdminController
         redirect(base_url('?route=admin/usuarios'));
     }
 
+    // ========= ALIASES DE ROTAS (sinonimos _novo / _nova para conveniencia) =========
+    public function dashboard() { $this->index(); }
+    public function unidade_novo()    { $args = func_get_args();  $this->unidade_nova(...$args); }
+    public function procuracao_novo() { $args = func_get_args();  $this->procuracao_nova(...$args); }
+    public function assembleia_novo() { $args = func_get_args();  $this->assembleia_nova(...$args); }
+    public function pauta_novo()      { $args = func_get_args();  $this->pauta_nova(...$args); }
+    public function chapa_novo()      { $args = func_get_args();  $this->chapa_nova(...$args); }
+
+    public function pauta_desativar($id)
+    {
+        $pauta = $this->pautaModel->getById($id);
+        $this->pautaModel->setStatus($id, 'Pendente');
+        flashMessage('Pauta retirada de votação e marcada como Pendente.', 'success');
+        redirect(base_url('?route=admin/assembleia_gerenciar/' . $pauta['assembleia_id']));
+    }
+
     public function unidades()
     {
         $unidades = $this->unidadeModel->getAll();
