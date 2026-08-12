@@ -116,9 +116,27 @@ if (preg_match('#\.(css|js|png|jpe?g|gif|svg|ico|webp|pdf|woff2?|ttf|eot|map|txt
 // ============================================================
 try {
     /**
+     * 👇 ORDEM CORRETA para evitar "Cannot redeclare base_url():
+     *    1) Primeiro CARREGAMOS config.php (pode definir as funcoes
+     *       SEM !function_exists — é o caso do config do servidor).
+     *    2) DEPOIS definimos fallbacks com if (!function_exists)
+     *       — estes soh entram em ação se config nao tiver a fn.
+     *
+     * (Nao usamos $mvc ainda, apenas carregamos config cedo!)
+     */
+    $configPath = __DIR__ . '/config.php';
+    if (!is_file($configPath)) {
+        throw new RuntimeException("Arquivo config.php nao encontrado em " . htmlspecialchars($configPath));
+    }
+    require_once $configPath;
+
+    /**
      * FALLBACK helpers — caso config.php do servidor esteja desatualizado e
      * nao defina asset_url()/base_url()/sanitize() — definimos aqui TAMBEM
      * (dupla camada de seguranca).
+     *
+     * Observacao: se config.php jah os definiu (mesmo sem checagem),
+     * os blocos abaixo NAO executam — nunca mais vai dar "redeclare".
      */
     if (!defined('URL_BASE')) {
         $s  = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
