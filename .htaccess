@@ -1,53 +1,65 @@
 # ============================================================
-# .htaccess MINIMALISTA - 100% COMPATIVEL COM QUALQUER CPANEL
+# .htaccess RAIZ — AGNOSTICO A SUBPASTA (funciona em / OU /condominio)
 #
-# Motivo: O erro 403 duplo ("Additionally, a 403 ...") SEMPRE
-# acontece quando alguma diretiva AQUI VIOLA o AllowOverride do
-# Apache (ex.: "Options +SymLinksIfOwnerMatch" ou "Require all
-# denied" quando mod_authz_core esta desabilitado para .htaccess).
-#
-# REGRAS PARA ESSE ARQUIVO NUNCA QUEBRAR:
-#  1) Nunca use a diretiva "Options"
-#  2) Nunca use DirectoryMatch / Files / FilesMatch com Require
-#  3) Tudo que for reescrita fica DENTRO de <IfModule mod_rewrite.c>
-#  4) Nao configure ErrorDocument, RewriteBase ou nada alem do basico
+# Objetivo:
+#   - NUNCA mais quebrar por causa de subpasta
+#   - NUNCA dar erro 403 por diretiva proibida
+#   - Usar REQUEST_URI procurando '/public/' em QUALQUER posicao
 # ============================================================
 
-# ======================= SEGURANCA VIA REGRAS DE REWRITE ======
-# (esse metodo funciona em QUALQUER hospedagem pois usa soh
-#  mod_rewrite, o modulo que SEMPRE esta habilitado no cPanel)
+DirectoryIndex index.php index.html
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # --- Bloqueia pastas internas (RETORNA 403 via flag [F]) ---
-    RewriteRule ^(app|database|vendor|\.github|node_modules|tests)/ - [F,L,NC]
+    # ============================================================
+    # BLOQUEIO DE PASTAS (sempre retorna 403 via [F])
+    # ============================================================
+    RewriteRule (^|/)app(/|$) - [F,L,NC]
+    RewriteRule (^|/)database(/|$) - [F,L,NC]
+    RewriteRule (^|/)vendor(/|$) - [F,L,NC]
+    RewriteRule (^|/)\.github(/|$) - [F,L,NC]
+    RewriteRule (^|/)node_modules(/|$) - [F,L,NC]
+    RewriteRule (^|/)tests(/|$) - [F,L,NC]
 
-    # --- Bloqueia arquivos sensiveis por PADRAO DE NOME ---
-    RewriteCond %{REQUEST_FILENAME} (^|/)install\.php$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)deploy_ftp\.php$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)config(\.example)?\.php$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)\.env(\..*)?$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)\.git [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)(composer|package)(-lock)?\.(json|lock)$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)error_php\.log$ [NC,OR]
-    RewriteCond %{REQUEST_FILENAME} (^|/)README(\.md)?$ [NC]
+    # ============================================================
+    # BLOQUEIO DE ARQUIVOS SENSIVEIS
+    # Nota: install.php / instalador_unico.php / info_condominio.php
+    #       NAO sao bloqueados aqui. O usuario usa-os no deploy e
+    #       DEVE apaga-los manualmente apos o uso (conforme tela).
+    # ============================================================
+    RewriteCond %{REQUEST_FILENAME} (/|^)deploy_ftp\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)config(\.example)?\.php$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)\.env(\..*)?$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)error_php\.log$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)(composer|package)(-lock)?\.(json|lock)$ [NC,OR]
+    RewriteCond %{REQUEST_FILENAME} (/|^)README(\.md)?$ [NC]
     RewriteRule ^ - [F,L]
 
-    # --- PONTO DE ENTRADA: Tudo cai em /public/index.php ---
-    #     (exceto arquivos estaticos que existem de verdade)
-    RewriteCond %{REQUEST_URI} !^/public/ [NC]
+    # ============================================================
+    # ROTEAMENTO PARA O PONTO DE ENTRADA public/index.php
+    #
+    # Exemplos que funcionam com essas regras (sem RewriteBase!) :
+    #   /public_html/index.php           → /public/index.php
+    #   /public_html/condominio/         → /condominio/public/index.php
+    #   /public_html/qualquer/nome/      → /qualquer/nome/public/index.php
+    # ============================================================
+    # Se a URL JA contem /public/ em qualquer lugar...
+    RewriteCond %{REQUEST_URI} /public/ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*?/)?public/(.*)$ $1public/index.php?route=$2 [QSA,L]
+
+    # Se a URL NAO contem /public/ → re-escreve para a pasta public
+    RewriteCond %{REQUEST_URI} !/public/ [NC]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ public/index.php?route=$1 [QSA,L]
-
-    # Se ja acessar /public/ diretamente
-    RewriteCond %{REQUEST_URI} ^/public/ [NC]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^public/(.*)$ public/index.php?route=$1 [QSA,L]
 </IfModule>
 
-# ======================= SEGURANCA VIA CABECALHOS =============
+# ============================================================
+# SEGURANCA
+# ============================================================
 <IfModule mod_headers.c>
     Header always unset X-Powered-By
     Header set X-Content-Type-Options "nosniff"
@@ -55,22 +67,16 @@
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# ======================= CACHE / COMPRESSAO ===================
+# ============================================================
+# COMPRESSAO / CACHE
+# ============================================================
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
 </IfModule>
-
 <IfModule mod_expires.c>
     ExpiresActive On
-    ExpiresByType image/png              "access plus 1 month"
-    ExpiresByType image/jpeg             "access plus 1 month"
     ExpiresByType text/css               "access plus 7 days"
     ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType image/png image/jpeg image/gif image/svg+xml "access plus 1 month"
     ExpiresByType image/x-icon           "access plus 1 year"
 </IfModule>
-
-# ======================= FIM DO ARQUIVO =======================
-# Observacao: Nao ha "DirectoryIndex index.php" aqui pois o
-# Apache do cPanel ja o define globalmente. Se quiser adicionar
-# de qualquer forma, use abaixo. O risco de quebra e zero.
-# DirectoryIndex index.php index.html
