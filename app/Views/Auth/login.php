@@ -61,7 +61,7 @@
                     aria-describedby="cpf-hint"
                 >
                 <small id="cpf-hint" class="hint">
-                    Ex.: 922.633.991-00. Condôminos não precisam de senha.
+                    Ex.: 000.000.000-00. Condôminos não precisam de senha.
                 </small>
             </div>
 
