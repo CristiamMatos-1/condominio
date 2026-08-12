@@ -44,32 +44,43 @@ class AuthController
                     flashMessage('Senha incorreta.', 'error');
                     redirect(base_url('?route=auth/login'));
                 }
-            } elseif ($usuario['tipo'] === 'morador' && !empty($usuario['senha']) && !empty($senha)) {
+            } elseif ($usuario['tipo'] !== 'admin' && !empty($usuario['senha']) && !empty($senha)) {
+                // Qualquer perfil NAO-admin (admin_condominio ou morador) com senha cadastrada
+                // pode validar via senha tambem (flexibilidade).
                 if (!$this->usuarioModel->verificaSenha($usuario['id'], $senha)) {
                     flashMessage('Senha incorreta.', 'error');
                     redirect(base_url('?route=auth/login'));
                 }
             }
 
-            $_SESSION['usuario_id']   = $usuario['id'];
+            // =============== [ RBAC - perfil normalizado + tenant id ] ===============
+            $perfil = (string)($usuario['perfil'] ?? $usuario['tipo']);
+            if ($perfil === 'admin') $perfil = 'super_admin'; // compat legado migration 003
+
+            $_SESSION['usuario_id']   = (int)$usuario['id'];
             $_SESSION['usuario_nome'] = $usuario['nome'];
             $_SESSION['usuario_cpf']  = $usuario['cpf'];
-            $_SESSION['usuario_tipo'] = $usuario['tipo'];
+            $_SESSION['usuario_tipo'] = $usuario['tipo'];   // legado
+            $_SESSION['usuario_perfil'] = $perfil;          // principal
+            $_SESSION['condominio_id']  = !empty($usuario['condominio_id']) ? (int)$usuario['condominio_id'] : null;
 
-            if ($usuario['tipo'] === 'admin') {
-                flashMessage('Bem-vindo, ' . $usuario['nome'] . '!', 'success');
+            // ======= REDIRECIONAMENTO INTELIGENTE POR PERFIL =======
+            // 1) SUPER ADMIN e ADMIN CONDOMINIO → vão para painel administrativo
+            if ($perfil === 'super_admin' || $perfil === 'admin_condominio') {
+                flashMessage('Bem-vindo(a), ' . $usuario['nome'] . '!', 'success');
                 redirect(base_url('?route=admin/index'));
             }
 
+            // 2) MORADOR → procura assembleia ABERTA automatica do seu condominio
             $assembleiasAbertas = $this->assembleiaModel->getAbertaParaUsuario($usuario['id']);
 
             if (count($assembleiasAbertas) === 1) {
                 $assembleia = $assembleiasAbertas[0];
-                $this->registrarPresencaAutomatica($assembleia['id'], $usuario['id'], $assembleia['condominio_id']);
-                flashMessage('Presença registrada! Bem-vindo, ' . $usuario['nome'] . '!', 'success');
-                redirect(base_url('?route=assembleia/ver/' . $assembleia['id']));
+                $this->registrarPresencaAutomatica($assembleia['id'], $usuario['id'], (int)$assembleia['condominio_id']);
+                flashMessage('Presença registrada! Bem-vindo(a), ' . $usuario['nome'] . '!', 'success');
+                redirect(base_url('?route=assembleia/ver/' . (int)$assembleia['id']));
             } elseif (count($assembleiasAbertas) > 1) {
-                flashMessage('Bem-vindo! Selecione uma assembleia.', 'info');
+                flashMessage('Bem-vindo! Selecione uma assembleia abaixo.', 'info');
                 redirect(base_url('?route=assembleia/index'));
             } else {
                 flashMessage('Bem-vindo! Nenhuma assembleia aberta no momento.', 'info');
@@ -88,16 +99,20 @@ class AuthController
 
     private function registrarPresencaAutomatica($assembleiaId, $usuarioId, $condominioId)
     {
-        $unidades = $this->procuracaoModel->getTodasUnidadesUsuario($usuarioId, $condominioId);
+        // Usa metodo HABILITADAS (dono + procuracao + presenca manual) p/ nao perder
+        // o caso onde unidade.usuario_id eh NULL mas admin jah deu presenca
+        // (preferencialmente usamos a fonte A dono/procuracao aqui, mas o método
+        // novo garante cobertura de qualquer camada).
+        $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $assembleiaId, $condominioId);
 
         foreach ($unidades as $unidade) {
-            if (!$this->assembleiaModel->hasPresenca($assembleiaId, $unidade['id'])) {
+            if (!$this->assembleiaModel->hasPresenca($assembleiaId, (int)$unidade['id'])) {
                 $this->assembleiaModel->registrarPresenca(
-                    $assembleiaId,
-                    $unidade['id'],
-                    $usuarioId,
-                    (int) $unidade['via_procuracao'],
-                    !empty($unidade['procuracao_id']) ? $unidade['procuracao_id'] : null
+                    (int)$assembleiaId,
+                    (int)$unidade['id'],
+                    (int)$usuarioId,
+                    (int) ($unidade['via_procuracao'] ?? 0),
+                    !empty($unidade['procuracao_id']) ? (int)$unidade['procuracao_id'] : null
                 );
             }
         }
