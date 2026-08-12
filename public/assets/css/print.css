@@ -1,0 +1,218 @@
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 11pt !important;
+    }
+
+    .relatorio-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .relatorio-header {
+        margin-bottom: 1.5cm !important;
+        padding-bottom: 0.75cm !important;
+        border-bottom: 2px double #000 !important;
+    }
+
+    .relatorio-titulo {
+        font-size: 18pt !important;
+        color: #000 !important;
+    }
+
+    .relatorio-subtitulo {
+        font-size: 13pt !important;
+        color: #000 !important;
+    }
+
+    .logo-relatorio {
+        font-size: 2.5cm !important;
+    }
+
+    .relatorio-info {
+        background: #fff !important;
+        border: 1px solid #000 !important;
+        font-size: 10pt !important;
+    }
+
+    .relatorio-info p {
+        margin: 2px 0 !important;
+    }
+
+    .resumo-presenca {
+        margin: 1cm 0 !important;
+    }
+
+    .resumo-item {
+        background: #fff !important;
+        border: 1px solid #000 !important;
+        padding: 0.5cm !important;
+    }
+
+    .resumo-num {
+        font-size: 18pt !important;
+        color: #000 !important;
+    }
+
+    .tabela-impressao {
+        font-size: 9pt !important;
+        page-break-inside: auto;
+    }
+
+    .tabela-impressao thead {
+        display: table-header-group;
+    }
+
+    .tabela-impressao th {
+        background: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tabela-impressao tbody tr:nth-child(even) {
+        background: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tabela-impressao th,
+    .tabela-impressao td {
+        border: 1px solid #000 !important;
+        padding: 4px 6px !important;
+    }
+
+    .badge {
+        border: 1px solid #000 !important;
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 8pt !important;
+    }
+
+    .badge-success, .badge-danger, .badge-warning, .badge-info, .badge-secondary, .badge-blue, .badge-purple {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    .barra-container {
+        border: 1px solid #000 !important;
+        background: #fff !important;
+    }
+
+    .barra-sim {
+        background: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .barra-nao {
+        background: #666 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .barra-chapa-fill {
+        background: #333 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .resultado-numeros .sim { color: #000 !important; }
+    .resultado-numeros .nao { color: #000 !important; }
+    .resultado-numeros .total { color: #000 !important; }
+
+    .chapa-vencedora-borda, .chapa-item.chapa-vencedora {
+        border: 2px solid #000 !important;
+        background: #fff !important;
+    }
+
+    .colocacao {
+        color: #000 !important;
+        font-weight: 700 !important;
+    }
+
+    .pauta-resultado, .chapa-resultado {
+        page-break-inside: avoid;
+        border: 1px solid #000 !important;
+        background: #fff !important;
+        margin-bottom: 0.75cm !important;
+    }
+
+    .secao-titulo {
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+        font-size: 13pt !important;
+    }
+
+    .relatorio-footer {
+        margin-top: 2cm !important;
+        page-break-before: auto;
+    }
+
+    .assinatura-sindico .linha {
+        border-top: 1px solid #000 !important;
+    }
+
+    .data-geracao {
+        border-top: 1px dashed #000 !important;
+        color: #000 !important;
+    }
+
+    .sistema-info {
+        color: #000 !important;
+    }
+
+    .pauta-resultado-head, .chapa-head-grande {
+        color: #000 !important;
+    }
+
+    .votos-count, .votos-count-grande {
+        color: #000 !important;
+    }
+
+    .total-geral {
+        background: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 1px solid #000 !important;
+    }
+
+    .detalhes-votos summary {
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    code {
+        background: #fff !important;
+        border: 1px solid #000 !important;
+    }
+
+    .assinatura-col {
+        min-width: 140px;
+    }
+
+    .checkin-info {
+        background: #fff !important;
+        border: 1px solid #000 !important;
+    }
+
+    .checkin-ok {
+        color: #000 !important;
+    }
+
+    .checkin-data {
+        color: #000 !important;
+    }
+
+    @page {
+        margin: 1.5cm;
+        size: A4 portrait;
+    }
+}
