@@ -115,6 +115,35 @@ if (preg_match('#\.(css|js|png|jpe?g|gif|svg|ico|webp|pdf|woff2?|ttf|eot|map|txt
 // (B) Encaminhar para o MVC public/index.php
 // ============================================================
 try {
+    /**
+     * FALLBACK helpers — caso config.php do servidor esteja desatualizado e
+     * nao defina asset_url()/base_url()/sanitize() — definimos aqui TAMBEM
+     * (dupla camada de seguranca).
+     */
+    if (!defined('URL_BASE')) {
+        $s  = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $sn   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php')), '/');
+        define('URL_BASE', $s . '://' . $host . ($sn ?: ''));
+    }
+    if (!function_exists('base_url')) {
+        function base_url($path = ''): string {
+            return rtrim(URL_BASE, '/') . '/' . ltrim((string)$path, '/');
+        }
+    }
+    if (!function_exists('asset_url')) {
+        function asset_url(string $relPath): string {
+            $relPath = ltrim($relPath, '/');
+            if (strpos($relPath, 'assets/') === 0) return rtrim(URL_BASE, '/') . '/public/' . $relPath;
+            return rtrim(URL_BASE, '/') . '/public/assets/' . $relPath;
+        }
+    }
+    if (!function_exists('sanitize')) {
+        function sanitize($v): string {
+            return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+        }
+    }
+
     // Garante que $_GET['route'] existe
     if (empty($_GET['route']) || !is_string($_GET['route'])) {
         $rota = $requestUri;
