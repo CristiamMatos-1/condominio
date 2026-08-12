@@ -51,7 +51,7 @@ class AssembleiaController
         }
 
         $condominioId = $assembleia['condominio_id'];
-        $unidades = $this->procuracaoModel->getTodasUnidadesUsuario($usuarioId, $condominioId);
+        $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $id, $condominioId);
 
         if (empty($unidades) && !isAdmin()) {
             flashMessage('Você não tem permissão para acessar esta assembleia.', 'error');
@@ -123,7 +123,7 @@ class AssembleiaController
             redirect(base_url('?route=assembleia/ver/' . $assembleiaId));
         }
 
-        $unidades = $this->procuracaoModel->getTodasUnidadesUsuario($usuarioId);
+        $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $assembleiaId);
         $unidadeSelecionada = null;
         foreach ($unidades as $un) {
             if ($un['id'] === $unidadeId) {
@@ -176,7 +176,7 @@ class AssembleiaController
         $assembleiaId = $chapa['assembleia_id'];
         $unidadeId = (int) ($_POST['unidade_id'] ?? 0);
 
-        $unidades = $this->procuracaoModel->getTodasUnidadesUsuario($usuarioId);
+        $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $assembleiaId);
         $unidadeSelecionada = null;
         foreach ($unidades as $un) {
             if ($un['id'] === $unidadeId) {
