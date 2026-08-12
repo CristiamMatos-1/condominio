@@ -37,13 +37,16 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
   `email` VARCHAR(150) DEFAULT NULL,
   `telefone` VARCHAR(20) DEFAULT NULL,
   `tipo` ENUM('admin','morador') NOT NULL DEFAULT 'morador',
+  `condominio_id` INT UNSIGNED DEFAULT NULL,
   `senha` VARCHAR(255) DEFAULT NULL,
   `ativo` TINYINT(1) NOT NULL DEFAULT 1,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_usuarios_cpf` (`cpf`),
-  KEY `idx_usuarios_tipo` (`tipo`)
+  KEY `idx_usuarios_tipo` (`tipo`),
+  KEY `idx_usuarios_condominio` (`condominio_id`),
+  CONSTRAINT `fk_usuarios_condominio` FOREIGN KEY (`condominio_id`) REFERENCES `condominios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------

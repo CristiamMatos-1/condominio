@@ -108,6 +108,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $defaults['DB_PASS'],
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
             );
+            // ---- Patch de estrutura: adiciona coluna condominio_id em usuarios (se nao existir)
+            try {
+                $col = $pdo->query("SHOW COLUMNS FROM usuarios LIKE 'condominio_id'")->fetch();
+                if (!$col) {
+                    // Adiciona coluna + FK de forma segura
+                    @$pdo->exec("ALTER TABLE usuarios ADD COLUMN condominio_id INT UNSIGNED DEFAULT NULL AFTER tipo");
+                    @$pdo->exec("ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_condominio FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE SET NULL ON UPDATE CASCADE");
+                }
+            } catch (Throwable $e) { /* ignora se erro de duplicacao */ }
+
             // Grava ou atualiza usuario Admin
             $cpfLimpo = preg_replace('/\D/', '', $defaults['ADMIN_CPF']);
             $hash = password_hash($defaults['ADMIN_SENHA'], PASSWORD_DEFAULT);
@@ -115,10 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$cpfLimpo]);
             $existe = $stmt->fetchColumn();
             if ($existe) {
-                $up = $pdo->prepare("UPDATE usuarios SET nome=?,email=?,senha=?,tipo='admin',status='ativo' WHERE id=?");
+                $up = $pdo->prepare("UPDATE usuarios SET nome=?,email=?,senha=?,tipo='admin',ativo=1,condominio_id=NULL WHERE id=?");
                 $up->execute([$defaults['ADMIN_NOME'], $defaults['ADMIN_EMAIL'], $hash, $existe]);
             } else {
-                $ins = $pdo->prepare("INSERT INTO usuarios (nome,cpf,email,senha,tipo,status,condominio_id,created_at) VALUES (?,?,?,?,?,'ativo',NULL,NOW())");
+                $ins = $pdo->prepare("INSERT INTO usuarios (nome,cpf,email,senha,tipo,ativo,condominio_id,created_at) VALUES (?,?,?,?,?,1,NULL,NOW())");
                 $ins->execute([$defaults['ADMIN_NOME'], $defaults['ADMIN_CPF'], $defaults['ADMIN_EMAIL'], $hash, 'admin']);
             }
             // Escreve o config.php
