@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assembleia - Sistema de Condomínio</title>
-    <link rel="stylesheet" href="<?= base_url('assets/css/style.css') ?>">
+    <link rel="stylesheet" href="<?= asset_url('css/style.css') ?>">
 </head>
 <body class="morador-body">
     <header class="morador-header">

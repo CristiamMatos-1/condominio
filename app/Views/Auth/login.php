@@ -18,7 +18,7 @@
     <title><?= sanitize($title ?? 'Acessar Sistema | Assembleias Condominiais') ?></title>
     <meta name="description" content="Sistema de Eleição e Gestão de Assembleias para Condomínios - CONINFOMS Soluções em Tecnologia">
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    <link rel="stylesheet" href="<?= sanitize(base_url('assets/css/style.css')) ?>">
+    <link rel="stylesheet" href="<?= sanitize(asset_url('css/style.css')) ?>">
 </head>
 <body class="login-ci">
     <main class="login-card" role="main" aria-labelledby="titulo-login">
@@ -100,7 +100,7 @@
         </footer>
     </main>
 
-    <script src="<?= sanitize(base_url('assets/js/app.js')) ?>"></script>
+    <script src="<?= sanitize(asset_url('js/app.js')) ?>"></script>
     <script>
     (function(){
         const cpf        = document.getElementById('cpf');

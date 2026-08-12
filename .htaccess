@@ -1,11 +1,29 @@
-# .htaccess — Versao MINIMA (ZERO risco de 500, 9 linhas uteis)
-# Apenas ativa mod_rewrite basico. Mesmo que falhe, temos o
-# /index.php fallback na raiz que funciona SEM mod_rewrite.
+# ============================================================
+# .htaccess V3 FINAL — Resolve ESTÁTICOS + MVC
+# ============================================================
+# Objetivo:
+#   1) Se arquivo/pasta REAL existir na RAIZ, serve ele.
+#   2) Se NÃO existir na raiz, PROCURA DENTRO DA PASTA /public/.
+#      Ex.:  /assets/css/style.css  →  /public/assets/css/style.css
+#            /assets/js/app.js      →  /public/assets/js/app.js
+#   3) Se NENHUM dos dois existir, chama o MVC em index.php (fallback).
+# ============================================================
 
 DirectoryIndex index.php public/index.php index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # ---- (2) Se NAO existe na raiz, tenta servir de dentro do public ----
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d
+    RewriteCond %{REQUEST_URI} ^(.*?)/?(assets/|favicon\.ico|robots\.txt|sitemap\.xml) [NC]
+    RewriteCond %{REQUEST_FILENAME} ^(.*)$
+    RewriteRule ^ %1/public%{REQUEST_URI} [L]
+
+    # ---- (3) Se ainda assim NAO existe, chama o MVC ----
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]

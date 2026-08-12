@@ -5,6 +5,6 @@
             <p>Sistema projetado pelo <strong>Eng. de Software Cristiam Matos</strong> &copy; <?= date('Y') ?></p>
         </div>
     </footer>
-    <script src="<?= base_url('assets/js/app.js') ?>"></script>
+    <script src="<?= asset_url('js/app.js') ?>"></script>
 </body>
 </html>
