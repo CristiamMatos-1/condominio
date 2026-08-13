@@ -170,15 +170,29 @@
         // foco automatico (bom para mobile e acessibilidade)
         setTimeout(() => { try { cpf.focus({preventScroll:true}); } catch(e){} }, 150);
 
-        function adminOn() {
+        function adminOn(opcoes) {
+            opcoes = opcoes || {};
+            // Modo administrativo LIGADO: deixa o campo senha VISIVEL ate que o usuario
+            // resolva desligar manualmente (listener blur NAO desativa mais qdo modoAdmin=1).
+            if (opcoes.marcarModoAdmin !== false) cpf.dataset.modoAdmin = '1';
             senhaGroup.hidden = false;
             senha.setAttribute('required', 'required');
-            setTimeout(()=>{ try{ senha.focus(); }catch(e){} }, 150);
+            // Nao forca foco automatico na senha se opcoes.focarSenha for false.
+            if (opcoes.focarSenha !== false) {
+                setTimeout(function(){ try{ senha.focus(); }catch(e){} }, 150);
+            }
         }
-        function adminOff() {
+        function adminOff(opcoes) {
+            opcoes = opcoes || {};
+            // Apenas apaga a flag de modo administrativo se qdo chamado for explicitamente
+            // para reset total (ex.: CPF totalmente vazio).
+            if (opcoes.resetModoAdmin === true) cpf.dataset.modoAdmin = '';
             senhaGroup.hidden = true;
             senha.removeAttribute('required');
             senha.value = '';
+        }
+        function modoAdminAtivo() {
+            return cpf.dataset.modoAdmin === '1';
         }
         function mascararCpf(valorRaw) {
             const v = (valorRaw || '').replace(/\D/g,'').slice(0,11);
@@ -189,11 +203,42 @@
         }
         cpf.addEventListener('input', function(){
             this.value = mascararCpf(this.value);
+            // Se usuario esta digitando um CPF novo (diferente do setado via card),
+            // NÃO desliga o modo admin. Só desliga modo admin se apagar TUDO.
+            if (this.value === '') adminOff({resetModoAdmin:true});
         });
+
+        // ========== REGRA CRÍTICA CORRIGIDA ==========
+        // O blur NÃO fecha mais o campo de senha se:
+        //   A) Modo administrativo ESTA LIGADO (usuario clicou em um card Super Admin/Síndico)
+        //   B) CPF tiver 11 dígitos (CPF completo = provavel administrador/gestor)
+        // Somente FECHA o campo senha se cpf FOR VAZIO e sem modo admin.
         cpf.addEventListener('blur', function () {
             const raw = (this.value || '').replace(/\D/g,'');
-            if (raw === '00000000000') adminOn(); else adminOff();
+
+            if (modoAdminAtivo()) {
+                // 👉 Correção BUG 1 e BUG 2: qdo clicar em um dos cards, o modoAdmin
+                // esta '1' — entao MANTEM o campo senha ABERTO, nao fecha mais.
+                adminOn({marcarModoAdmin:false, focarSenha:false});
+                return;
+            }
+
+            // Usuario nao clicou em nenhum card. Se CPF for um CPF COMPLETO (11 digitos),
+            // abre o campo senha tambem — flexivel para admins/gestores que nao usam os cards.
+            if (raw.length === 11) {
+                adminOn({marcarModoAdmin:false, focarSenha:false});
+                return;
+            }
+
+            // CPF vazio ou incompleto e sem modo admin → fecha campo senha (limpa).
+            if (raw === '') {
+                adminOff({resetModoAdmin:true});
+                return;
+            }
+
+            // CPF digitado porem incompleto → mantem o estado anterior, nao muda nada.
         });
+
         // Evita duplo submit e melhora UX
         form.addEventListener('submit', function () {
             btnEntrar.disabled = true;
@@ -211,23 +256,28 @@
             btn.addEventListener('click', function () {
                 const papel = this.getAttribute('data-papel');
                 if (papel === 'super_admin') {
+                    // Super Admin — PREENCHE CPF COMPLETO automatico + liga modo admin.
                     cpf.value = mascararCpf('92263399100');
-                    adminOn();
+                    adminOn({marcarModoAdmin:true, focarSenha:true});
                 } else if (papel === 'admin_condominio') {
-                    // Síndico / Gestor — coloca placeholder e dá foco no CPF
+                    // Síndico / Gestor — liga modo admin, limpa CPF, foca input CPF,
+                    // marca input com borda dourada animada, placeholder personalizado.
                     cpf.value = '';
                     cpf.placeholder = 'Digite o CPF do(a) Síndico(a)/Gestor(a)';
-                    cpf.focus();
-                    // Marca o input com uma borda dourada (feedback visual)
+                    // Marca modo admin para o NAO fechar campo senha no blur depois
+                    // que usuario digitar o CPF do sindico (agora BUG 2 resolvido).
+                    adminOn({marcarModoAdmin:true, focarSenha:false});
+                    // Marca input com borda dourada (feedback visual)
                     cpf.style.outline = '2px solid #D97706';
                     cpf.style.outlineOffset = '2px';
                     setTimeout(function(){
                         cpf.style.outline = '';
                         cpf.style.outlineOffset = '';
                         cpf.placeholder = '000.000.000-00';
-                    }, 2500);
-                    // Abre campo senha (pois gestor tambem tem senha administrativa)
-                    adminOn();
+                    }, 3000);
+                    setTimeout(function(){
+                        try { cpf.focus({preventScroll:true}); } catch (e){}
+                    }, 60);
                 }
             });
         });
