@@ -74,14 +74,28 @@ class AuthController
             }
 
             // =============== [ RBAC - perfil normalizado + tenant id ] ===============
-            $perfil = (string)($usuario['perfil'] ?? $usuario['tipo']);
-            if ($perfil === 'admin') $perfil = 'super_admin'; // compat legado migration 003
+            // Resolve bugs de migration antiga (migration 001/003):
+            //   • usuários criados ANTES da migration 003_multi_tenant_rbac tinham
+            //     coluna `tipo='admin'` e `perfil=NULL` (pois perfil não existia).
+            //   • No login nós normalizamos PARA SEMPRE o perfil e gravamos em
+            //     AMBAS $_SESSION['usuario_perfil'] e $_SESSION['usuario_tipo'].
+            //     Isso evita que helpers antigos (que só leem `tipo`) vs helpers novos
+            //     (que só leem `perfil`) divergam e causem redirect para
+            //     "Minha Assembleia" por falha em requireAdmin().
+            $perfil  = (string)($usuario['perfil'] ?? '');
+            $tipoRaw = (string)($usuario['tipo']   ?? '');
+            if ($perfil === '' || $perfil === null) $perfil = $tipoRaw;   // fallback migration antiga
+            if ($perfil === 'admin')                $perfil = 'super_admin';  // compat legado
+            if ($tipoRaw === 'admin')               $tipoRaw = 'super_admin';
 
             $_SESSION['usuario_id']     = (int)$usuario['id'];
             $_SESSION['usuario_nome']   = $usuario['nome'];
             $_SESSION['usuario_cpf']    = $usuario['cpf'];
-            $_SESSION['usuario_tipo']   = $usuario['tipo'];   // legado
-            $_SESSION['usuario_perfil'] = $perfil;            // principal
+            $_SESSION['usuario_tipo']   = $perfil;           // ← GRAVA perfil normalizado AQUI também
+            $_SESSION['usuario_perfil'] = $perfil;           // ← GRAVA perfil normalizado
+            // Snapshot "raw" do banco, caso algum helper precise inspecionar depois (debug):
+            $_SESSION['usuario_perfil_raw_db']  = (string)($usuario['perfil'] ?? '');
+            $_SESSION['usuario_tipo_raw_db']    = (string)($usuario['tipo']   ?? '');
             $_SESSION['condominio_id']  = !empty($usuario['condominio_id']) ? (int)$usuario['condominio_id'] : null;
 
             // ======= REDIRECIONAMENTO INTELIGENTE POR PERFIL =======

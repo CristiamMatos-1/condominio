@@ -286,6 +286,37 @@ try {
     // Nao faz nada — evita qualquer possibilidade de WSOD.
 }
 
+// ==========================================================================
+// 🔧 RBAC — SYNC FORÇADO DE PERFIL NA SESSÃO (anti-redirect bug "Minha Assembleia")
+//
+// Problema histórico: helpers em config.php podem estar desatualizados e lerem
+// apenas $_SESSION['usuario_tipo'], enquanto a aplicação grava
+// $_SESSION['usuario_perfil']. Em bancos migrados da migration 001/003,
+// usuários admin legados tinham tipo='admin' e perfil=NULL. O resultado:
+// requireAdmin() falhava silenciosamente e redirecionava TODAS as rotas de
+// gestão para ?route=assembleia/index ("Minha Assembleia").
+//
+// Resolução: executado a 100% dos requests, corrige divergências na sessão.
+// ==========================================================================
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    @session_start();
+}
+if (!empty($_SESSION['usuario_id'])) {
+    $pPerfil = (string)($_SESSION['usuario_perfil'] ?? '');
+    $pTipo   = (string)($_SESSION['usuario_tipo']   ?? '');
+    // Normaliza 'admin' (legado) para 'super_admin' em QUALQUER lado.
+    if ($pPerfil === 'admin') $pPerfil = 'super_admin';
+    if ($pTipo   === 'admin') $pTipo   = 'super_admin';
+    // Resolve lado vazio: se perfil=='' e tipo!='', usa tipo. E vice versa.
+    if ($pPerfil === '' && $pTipo !== '')   $pPerfil = $pTipo;
+    if ($pTipo   === '' && $pPerfil !== '') $pTipo   = $pPerfil;
+    // Garante consistência DUPLICANDO o valor em ambas chaves (redundância segura).
+    $_SESSION['usuario_perfil'] = $pPerfil;
+    $_SESSION['usuario_tipo']   = $pTipo;
+    // Marcador de sync rodou (debug):
+    if (!isset($_SESSION['rbac_sync_versao'])) $_SESSION['rbac_sync_versao'] = 2;
+}
+
 $route = $_GET['route'] ?? 'auth/login';
 $route = trim($route, '/');
 

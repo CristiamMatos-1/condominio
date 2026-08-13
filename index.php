@@ -358,6 +358,26 @@ try {
     }
 
     // ======================================================================
+    // 🔧 RBAC — SYNC FORÇADO NA SESSÃO (resolvendo redirect bug "Minha Assembleia")
+    // Versão idêntica do public/index.php. Duplicação intencional pois este
+    // index.php funciona como fallback universal em ambientes sem rewrite.
+    // ======================================================================
+    if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        @session_start();
+    }
+    if (!empty($_SESSION['usuario_id'])) {
+        $pPerfil = (string)($_SESSION['usuario_perfil'] ?? '');
+        $pTipo   = (string)($_SESSION['usuario_tipo']   ?? '');
+        if ($pPerfil === 'admin') $pPerfil = 'super_admin';
+        if ($pTipo   === 'admin') $pTipo   = 'super_admin';
+        if ($pPerfil === '' && $pTipo !== '')   $pPerfil = $pTipo;
+        if ($pTipo   === '' && $pPerfil !== '') $pTipo   = $pPerfil;
+        $_SESSION['usuario_perfil'] = $pPerfil;
+        $_SESSION['usuario_tipo']   = $pTipo;
+        if (!isset($_SESSION['rbac_sync_versao'])) $_SESSION['rbac_sync_versao'] = 2;
+    }
+
+    // ======================================================================
     // 🔧 AUTO-PATCH DE SCHEMA (idempotente, 0 risco)
     // Resolve automaticamente PDOException Unknown column 'email' / 'telefone'
     // em condominios sem precisar de SQL manual no phpMyAdmin.
