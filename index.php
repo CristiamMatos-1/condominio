@@ -357,6 +357,64 @@ try {
         }
     }
 
+    // ======================================================================
+    // 🔧 AUTO-PATCH DE SCHEMA (idempotente, 0 risco)
+    // Resolve automaticamente PDOException Unknown column 'email' / 'telefone'
+    // em condominios sem precisar de SQL manual no phpMyAdmin.
+    // Performance: checa somente 1x por sessão via $_SESSION.
+    // ======================================================================
+    if (!function_exists('condominio_aplicar_patch_005_email_telefone')) {
+        function condominio_aplicar_patch_005_email_telefone(): void {
+            $CHAVE_SESSAO = 'patch_005_email_telefone_aplicado';
+            if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION[$CHAVE_SESSAO])) return;
+            try {
+                $dsn  = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+                $pdo  = new PDO($dsn, DB_USER, DB_PASS, [
+                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES   => false,
+                ]);
+                $stmt = $pdo->prepare("SELECT COUNT(*) AS tem
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME   = 'condominios'
+                      AND COLUMN_NAME  = 'email'");
+                $stmt->execute();
+                $temEmail = (int)($stmt->fetchColumn() ?? 0);
+                if ($temEmail <= 0) {
+                    $pdo->exec("ALTER TABLE `condominios`
+                        ADD COLUMN `email` VARCHAR(150) NULL DEFAULT NULL AFTER `cep`");
+                }
+                $stmt2 = $pdo->prepare("SELECT COUNT(*) AS tem
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME   = 'condominios'
+                      AND COLUMN_NAME  = 'telefone'");
+                $stmt2->execute();
+                $temTelefone = (int)($stmt2->fetchColumn() ?? 0);
+                if ($temTelefone <= 0) {
+                    $pdo->exec("ALTER TABLE `condominios`
+                        ADD COLUMN `telefone` VARCHAR(20) NULL DEFAULT NULL AFTER `email`");
+                }
+                if (session_status() !== PHP_SESSION_ACTIVE) {
+                    @session_start();
+                }
+                $_SESSION[$CHAVE_SESSAO] = 1;
+            } catch (Throwable $e) {
+                if (function_exists('security_log_exception')) {
+                    security_log_exception($e, 'auto-patch-005');
+                } else {
+                    @error_log('[PATCH-005-FALHA] ' . $e->getMessage());
+                }
+            }
+        }
+    }
+    try {
+        if (defined('DB_HOST') && defined('DB_NAME') && defined('DB_USER') && defined('DB_PASS')) {
+            condominio_aplicar_patch_005_email_telefone();
+        }
+    } catch (Throwable $eIgnoradoPatch005) {}
+
     // Garante que $_GET['route'] existe
     if (empty($_GET['route']) || !is_string($_GET['route'])) {
         $rota = $requestUri;

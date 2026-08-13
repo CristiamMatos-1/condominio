@@ -211,6 +211,81 @@ if (!function_exists('csrf_token_verify')) {
     }
 }
 
+// ==========================================================================
+// 🔧 AUTO-PATCH DE SCHEMA (idempotente, 0 risco)
+// Objetivo: evita o erro PDOException "Unknown column 'email' em condominios"
+// SEM precisar rodar SQL manual no phpMyAdmin.
+// Como funciona: verifica se colunas email/telefone existem. Se NAO existirem,
+// executa ALTER TABLE via INFORMATION_SCHEMA + PREPARE (seguro, funciona mesmo
+// que a migration 005 nao tenha sido rodada).
+// Performance: $_SESSION['patch_005_aplicado'] evita consultar o schema
+// a cada request (1 consulta por sessão apenas).
+// ==========================================================================
+if (!function_exists('condominio_aplicar_patch_005_email_telefone')) {
+    function condominio_aplicar_patch_005_email_telefone(): void {
+        $CHAVE_SESSAO = 'patch_005_email_telefone_aplicado';
+        if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION[$CHAVE_SESSAO])) return;
+        try {
+            // Usa PDO direto (evita depender de Database::getInstance() que ainda
+            // pode nao ter sido carregado em alguns cenarios do bootstrap raiz).
+            $dsn  = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+            $pdo  = new PDO($dsn, DB_USER, DB_PASS, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]);
+
+            // 1) email ?
+            $stmt = $pdo->prepare("SELECT COUNT(*) AS tem
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME   = 'condominios'
+                  AND COLUMN_NAME  = 'email'");
+            $stmt->execute();
+            $temEmail = (int)($stmt->fetchColumn() ?? 0);
+            if ($temEmail <= 0) {
+                $pdo->exec("ALTER TABLE `condominios`
+                    ADD COLUMN `email` VARCHAR(150) NULL DEFAULT NULL AFTER `cep`");
+            }
+
+            // 2) telefone ?
+            $stmt2 = $pdo->prepare("SELECT COUNT(*) AS tem
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME   = 'condominios'
+                  AND COLUMN_NAME  = 'telefone'");
+            $stmt2->execute();
+            $temTelefone = (int)($stmt2->fetchColumn() ?? 0);
+            if ($temTelefone <= 0) {
+                $pdo->exec("ALTER TABLE `condominios`
+                    ADD COLUMN `telefone` VARCHAR(20) NULL DEFAULT NULL AFTER `email`");
+            }
+
+            if (session_status() !== PHP_SESSION_ACTIVE) {
+                @session_start();
+            }
+            $_SESSION[$CHAVE_SESSAO] = 1;
+        } catch (Throwable $e) {
+            // Se falhar por qualquer motivo (ex.: permissoes de ALTER), NAO
+            // quebra a aplicacao — apenas loga silenciosamente. O erro de
+            // coluna desconhecida ainda vai aparecer se as colunas realmente
+            // nao existirem (e entao o usuario pode rodar a migration manual).
+            if (function_exists('security_log_exception')) {
+                security_log_exception($e, 'auto-patch-005');
+            } else {
+                @error_log('[PATCH-005-FALHA] ' . $e->getMessage());
+            }
+        }
+    }
+}
+try {
+    if (defined('DB_HOST') && defined('DB_NAME') && defined('DB_USER') && defined('DB_PASS')) {
+        condominio_aplicar_patch_005_email_telefone();
+    }
+} catch (Throwable $eIgnoradoPatch005) {
+    // Nao faz nada — evita qualquer possibilidade de WSOD.
+}
+
 $route = $_GET['route'] ?? 'auth/login';
 $route = trim($route, '/');
 
