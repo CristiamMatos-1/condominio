@@ -9,12 +9,14 @@
 <body class="admin-body">
     <?php if (defined('CONDOMINIO_DEBUG') && CONDOMINIO_DEBUG === 1 && !empty($_SESSION['usuario_id'])): ?>
         <div style="background:#FFF7ED;border:1px solid #FDBA74;color:#92400E;padding:8px 14px;font-size:12px;font-family:ui-monospace,monospace;">
-            🛠️ DEBUG (RBAC) · Sessão ID=<?= (int)$_SESSION['usuario_id'] ?> ·
-            usuario_perfil = <b><?= htmlspecialchars((string)($_SESSION['usuario_perfil'] ?? 'NULL')) ?></b> ·
-            usuario_tipo = <b><?= htmlspecialchars((string)($_SESSION['usuario_tipo'] ?? 'NULL')) ?></b> ·
-            condominio_id = <b><?= htmlspecialchars(var_export($_SESSION['condominio_id'] ?? null, true)) ?></b> ·
-            perfil_raw_db = <b><?= htmlspecialchars((string)($_SESSION['usuario_perfil_raw_db'] ?? 'NULL')) ?></b> ·
-            tipo_raw_db = <b><?= htmlspecialchars((string)($_SESSION['usuario_tipo_raw_db'] ?? 'NULL')) ?></b>
+            🛠️ DEBUG (RBAC v<?= (int)($_SESSION['rbac_sync_versao'] ?? 0) ?>
+            · Familia = <b><?= htmlspecialchars((string)($_SESSION['rbac_helper_familia'] ?? 'config_desatualizado')) ?></b>
+            · ID = <?= (int)$_SESSION['usuario_id'] ?>
+            · usuario_perfil = <b><?= htmlspecialchars((string)($_SESSION['usuario_perfil'] ?? 'NULL')) ?></b>
+            · usuario_tipo = <b><?= htmlspecialchars((string)($_SESSION['usuario_tipo'] ?? 'NULL')) ?></b>
+            · condominio_id = <b><?= htmlspecialchars(var_export($_SESSION['condominio_id'] ?? null, true)) ?></b>
+            · perfil_raw_db = <b><?= htmlspecialchars((string)($_SESSION['usuario_perfil_raw_db'] ?? 'NULL')) ?></b>
+            · tipo_raw_db = <b><?= htmlspecialchars((string)($_SESSION['usuario_tipo_raw_db'] ?? 'NULL')) ?></b>
         </div>
     <?php endif; ?>
     <header class="admin-header">

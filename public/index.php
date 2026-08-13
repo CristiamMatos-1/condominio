@@ -1,20 +1,57 @@
 <?php
+// ==========================================================================
+// 🚨 CAMADA 0: SESSÃO + SYNC RBAC (ANTES DE TUDO)
+//
+// Objetivo: garantimos que $_SESSION estah disponivel e consistente MESMO
+// antes de incluir o vendor/config.php do servidor. Resolve definitivamente
+// o bug em que "todo clique do menu redireciona para Minha Assembleia"
+// causado por helpers RBAC antigos (em config.php servidor) lendo a sessao
+// ANTES de nós termos normalizado usuario_tipo / usuario_perfil.
+// ==========================================================================
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+// Sync RBAC HARDENED (normaliza usuario_perfil e usuario_tipo em AMBAS chaves).
+// Tambem define flag rbac_helper_familia = 'core_v3' para o debug banner.
+if (!isset($GLOBALS['RBAC_CORE_V3_SINCRONIZADO'])) {
+    $GLOBALS['RBAC_CORE_V3_SINCRONIZADO'] = 1;
+    if (!empty($_SESSION['usuario_id'])) {
+        $pPerfil = (string)($_SESSION['usuario_perfil'] ?? '');
+        $pTipo   = (string)($_SESSION['usuario_tipo']   ?? '');
+        // Normaliza 'admin' legado para 'super_admin'
+        if ($pPerfil === 'admin') $pPerfil = 'super_admin';
+        if ($pTipo   === 'admin') $pTipo   = 'super_admin';
+        // Resolve lado vazio (usamos o que tiver valor)
+        if ($pPerfil === '' && $pTipo !== '')   $pPerfil = $pTipo;
+        if ($pTipo   === '' && $pPerfil !== '') $pTipo   = $pPerfil;
+        // Se ainda assim for vazio, verifica raw_db e snapshot de login
+        if ($pPerfil === '') {
+            $raw1 = (string)($_SESSION['usuario_perfil_raw_db'] ?? '');
+            $raw2 = (string)($_SESSION['usuario_tipo_raw_db']   ?? '');
+            if ($raw1 === 'admin') $raw1 = 'super_admin';
+            if ($raw2 === 'admin') $raw2 = 'super_admin';
+            $pPerfil = $raw1 !== '' ? $raw1 : ($raw2 !== '' ? $raw2 : 'morador');
+            $pTipo   = $pPerfil;
+        }
+        $_SESSION['usuario_perfil'] = $pPerfil;
+        $_SESSION['usuario_tipo']   = $pTipo;
+        $_SESSION['rbac_sync_versao'] = 3;
+    }
+    $_SESSION['rbac_helper_familia'] = 'core_v3';
+}
 
-require_once __DIR__ . '/../config.php';
-
-/**
- * FALLBACK de helpers — garante que funcoes existam MESMO que o config.php
- * do servidor esteja desatualizado (credenciais de banco nao podem ser
- * sobrescritas, entao nao forçamos upload de config.php!)
- *
- * Definidos apenas SE NAO existirem (if !function_exists / !defined).
- */
+// ==========================================================================
+// 🚨 CAMADA 1: HELPERS RBAC COMPLETOS ANTES DO CONFIG.PHP
+//
+// Os helpers abaixo sao DEFINIDOS PRIMEIRO, para que o config.php do servidor
+// (que usa 'if (!function_exists(...)) nao os sobrescreva com versoes antigas.
+// Resolve completamente qualquer desatualizacao do servidor.
+// ==========================================================================
 if (!defined('URL_BASE')) {
-    $s  = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $s    = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $sn   = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/public/index.php'), '/');
     $sn   = rtrim(str_replace('\\', '/', $sn), '/');
-    // Remove "/public" do final pois URL_BASE é raiz do sistema
     if (substr($sn, -7) === '/public') $sn = substr($sn, 0, -7);
     define('URL_BASE', $s . '://' . $host . ($sn ?: ''));
 }
@@ -24,37 +61,55 @@ if (!function_exists('base_url')) {
     }
 }
 if (!function_exists('asset_url')) {
-    /**
-     * Resolve caminho SEMPRE para /public/assets/ mesmo sem rewrite.
-     */
     function asset_url(string $relPath): string {
         $relPath = ltrim($relPath, '/');
-        if (strpos($relPath, 'assets/') === 0) {
-            return rtrim(URL_BASE, '/') . '/public/' . $relPath;
-        }
+        if (strpos($relPath, 'assets/') === 0) return rtrim(URL_BASE, '/') . '/public/' . $relPath;
         return rtrim(URL_BASE, '/') . '/public/assets/' . $relPath;
     }
 }
 if (!function_exists('sanitize')) {
-    function sanitize($v): string {
-        return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+    function sanitize($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('flashMessage')) {
+    function flashMessage(?string $msg = null, string $type = 'info') {
+        if ($msg === null) {
+            $m = $_SESSION['_flash']['message'] ?? null;
+            $t = $_SESSION['_flash']['type']    ?? 'info';
+            unset($_SESSION['_flash']);
+            return $m ? ['message' => $m, 'type' => $t] : null;
+        }
+        $_SESSION['_flash'] = ['message' => $msg, 'type' => $type];
+        return null;
     }
 }
-// ==========================================================================
-// 🛡️ FALLBACK RBAC + TENANT GUARD (camada dupla! se config.php do servidor
-// nao foi atualizado manualmente — definimos TUDO aqui para evitar
-// "Call to undefined function tenant_guard() / isSuperAdmin()" etc.
-// Obs.: Chamamos flashMessage()/base_url() só se elas existirem.
-// ==========================================================================
+if (!function_exists('redirect')) {
+    function redirect(string $url, int $code = 302): void {
+        if (!headers_sent()) { header('Location: ' . $url, true, $code); exit; }
+        echo '<script>window.location.href="', sanitize($url), '";</script>'; exit;
+    }
+}
+if (!function_exists('security_log_exception')) {
+    function security_log_exception(Throwable $e, string $contexto = 'geral'): string {
+        $ticket = substr(str_shuffle('ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789'), 0, 12);
+        @error_log('[SEG-'.$ticket.'] '.$contexto.' | '.$e->getMessage().' | arq='.$e->getFile().':'.$e->getLine());
+        return $ticket;
+    }
+}
+if (!function_exists('security_mensagem_amigavel')) {
+    function security_mensagem_amigavel(string $ticket): string {
+        return 'Ocorreu um erro interno. Ticket: '.$ticket.'. Contate o suporte.';
+    }
+}
+// ---- helpers RBAC ----
 if (!function_exists('isLoggedIn')) {
-    function isLoggedIn(): bool { return isset($_SESSION['usuario_id']); }
+    function isLoggedIn(): bool { return isset($_SESSION['usuario_id']) && (int)$_SESSION['usuario_id'] > 0; }
 }
 if (!function_exists('perfilUsuario')) {
     function perfilUsuario(): string {
         if (!isLoggedIn()) return '';
-        $p = $_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador');
+        $p = (string)($_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador'));
         if ($p === 'admin') $p = 'super_admin';
-        return (string)$p;
+        return $p;
     }
 }
 if (!function_exists('isSuperAdmin')) {
@@ -84,21 +139,54 @@ if (!function_exists('tenant_guard')) {
         if (isSuperAdmin()) return;
         $sess = (int)condominioIdSessao();
         if ($sess <= 0) {
-            if (function_exists('flashMessage')) {
-                flashMessage('Seu perfil não tem condomínio associado. Contate o suporte.', 'error');
-            }
-            $url = function_exists('base_url') ? base_url('?route=auth/logout') : '?route=auth/logout';
-            header('Location: ' . $url, true, 302); exit;
+            flashMessage('Seu perfil não tem condomínio associado. Contate o suporte.', 'error');
+            redirect(base_url('?route=auth/logout'));
         }
         if ($sess !== $condominioIdSolicitado) {
-            if (function_exists('flashMessage')) {
-                flashMessage('Você não tem permissão para acessar dados de outro condomínio.', 'error');
-            }
-            $url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
-            header('Location: ' . $url, true, 302); exit;
+            flashMessage('Você não tem permissão para acessar dados de outro condomínio.', 'error');
+            redirect(base_url('?route=assembleia/index'));
         }
     }
 }
+// ---- require* (guards que REDIRECIONAM. GARANTIMOS 100% que são nossas) ----
+if (!function_exists('requireLogin')) {
+    function requireLogin(): void {
+        if (!isLoggedIn()) {
+            flashMessage('Por favor, faça login para continuar.', 'error');
+            redirect(base_url('?route=auth/login'));
+        }
+    }
+}
+if (!function_exists('requireAdmin')) {
+    function requireAdmin(): void {
+        requireLogin();
+        if (!isAdmin()) {
+            flashMessage('Você não tem permissão para acessar o painel administrativo.', 'error');
+            redirect(base_url('?route=assembleia/index'));
+        }
+    }
+}
+if (!function_exists('requireSuperAdmin')) {
+    function requireSuperAdmin(): void {
+        requireLogin();
+        if (!isSuperAdmin()) {
+            flashMessage('Acesso restrito ao Super Administrador da plataforma.', 'error');
+            redirect(base_url('?route=assembleia/index'));
+        }
+    }
+}
+if (!function_exists('requireAdminCondominio')) {
+    function requireAdminCondominio(): void {
+        requireLogin();
+        if (!isAdminCondominio()) {
+            flashMessage('Acesso restrito a gestores(as) de condomínio.', 'error');
+            redirect(base_url('?route=assembleia/index'));
+        }
+    }
+}
+
+require_once __DIR__ . '/../config.php';
+
 if (!function_exists('requireLogin')) {
     function requireLogin(): void {
         if (!isLoggedIn()) {
