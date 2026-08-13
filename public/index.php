@@ -81,6 +81,60 @@ $GLOBALS['RBAC_CORE_V3'] = [
 
 require_once __DIR__ . '/../config.php';
 
+// ==========================================================================
+// 🔧 CAMADA 2: FALLBACK HELPERS GERAIS (URL, VIEW, REDIRECT, FLASH)
+//
+// Primeiro os que são usados DIRETAMENTE pelas views (asset_url em login.php
+// linha 21, sanitize em todo lugar). Se config.php declarou eles, estes
+// blocos pulam (if!fn_exists).
+// ==========================================================================
+if (!defined('URL_BASE')) {
+    $s  = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $sn   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/public/index.php')), '/');
+    if (substr($sn, -7) === '/public') $sn = substr($sn, 0, -7);
+    define('URL_BASE', $s . '://' . $host . ($sn ?: ''));
+}
+if (!function_exists('base_url')) {
+    function base_url($path = ''): string {
+        return rtrim(URL_BASE, '/') . '/' . ltrim((string)$path, '/');
+    }
+}
+if (!function_exists('asset_url')) {
+    /**
+     * Resolve caminho absoluto para /public/assets/{$relPath}.
+     * Exemplo: asset_url('css/style.css') → /condominio/public/assets/css/style.css
+     */
+    function asset_url(string $relPath): string {
+        $relPath = ltrim($relPath, '/');
+        if (strpos($relPath, 'assets/') === 0) return rtrim(URL_BASE, '/') . '/public/' . $relPath;
+        return rtrim(URL_BASE, '/') . '/public/assets/' . $relPath;
+    }
+}
+if (!function_exists('sanitize')) {
+    function sanitize($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
+if (!function_exists('flashMessage')) {
+    function flashMessage(?string $msg = null, string $type = 'info') {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) @session_start();
+        if ($msg === null) {
+            $m = $_SESSION['_flash']['message'] ?? null;
+            $t = $_SESSION['_flash']['type']    ?? 'info';
+            unset($_SESSION['_flash']);
+            return $m ? ['message' => $m, 'type' => $t] : null;
+        }
+        $_SESSION['_flash'] = ['message' => $msg, 'type' => $type];
+        return null;
+    }
+}
+if (!function_exists('redirect')) {
+    function redirect(string $url, int $code = 302): void {
+        if (!headers_sent()) { header('Location: ' . $url, true, $code); exit; }
+        echo '<script>window.location.href="', sanitize($url), '";</script>';
+        exit;
+    }
+}
+
 if (!function_exists('requireLogin')) {
     function requireLogin(): void {
         if (!isLoggedIn()) {
