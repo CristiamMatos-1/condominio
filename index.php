@@ -118,10 +118,10 @@ try {
     // =====================================================================
     // 🚨 CAMADA 0 (ANTES DE TUDO): SESSÃO + SYNC RBAC NA RAIZ
     //
-    // Sessão iniciada ANTES de qualquer require config.php.
-    // Resolve 100% o bug "todo clique do menu vai para Minha Assembleia"
-    // pois não permite mais o config.php antigo ler a sessão antes de
-    // nós normalizarmos usuario_perfil / usuario_tipo.
+    // Regra GOLDEN: NESTA CAMADA NÃO DEFINIMOS NENHUMA FUNÇÃO GLOBAL NENHUMA
+    // CONSTANTE GLOBAL — porque config.php do servidor declara base_url()
+    // DIRETAMENTE (sem if(!function_exists)) e dá Fatal "Cannot redeclare".
+    // Aqui só ligamos sessão e normalizamos $_SESSION.
     // =====================================================================
     if (session_status() === PHP_SESSION_NONE) {
         @session_start();
@@ -151,192 +151,26 @@ try {
     }
 
     // =====================================================================
-    // 🚨 CAMADA 1: HELPERS RBAC + GERAIS DEFINIDOS ANTES DO CONFIG.PHP
+    // 🚨 CAMADA 1: CARREGAR CONFIG.PHP LOGO DEPOIS DA SESSÃO SINCRONIZADA
     //
-    // Por que antes? Porque o config.php do servidor define os helpers com
-    // "if (!function_exists())". Se nós definirmos PRIMEIRO, os helpers do
-    // config.php DESATUALIZADOS NÃO SERÃO EXECUTADOS, pois a função já
-    // existe. Isso resolve 100% o bug de helpers antigos.
+    // config.php do servidor:
+    //   • define DB_HOST/DB_USER/DB_PASS/DB_NAME (sessão MySQL)
+    //   • declara base_url() DIRETAMENTE (sem wrapper, por isso temos que
+    //     deixar ele definir primeiro)
+    //   • pode declarar TODOS helpers (RBAC/URL/CSRF/etc.) ou nenhum.
     // =====================================================================
-    if (!defined('URL_BASE')) {
-        $s    = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $sn   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php')), '/');
-        define('URL_BASE', $s . '://' . $host . ($sn ?: ''));
-    }
-    if (!function_exists('base_url')) {
-        function base_url($path = ''): string {
-            return rtrim(URL_BASE, '/') . '/' . ltrim((string)$path, '/');
-        }
-    }
-    if (!function_exists('asset_url')) {
-        function asset_url(string $relPath): string {
-            $relPath = ltrim($relPath, '/');
-            if (strpos($relPath, 'assets/') === 0) return rtrim(URL_BASE, '/') . '/public/' . $relPath;
-            return rtrim(URL_BASE, '/') . '/public/assets/' . $relPath;
-        }
-    }
-    if (!function_exists('sanitize')) {
-        function sanitize($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-    }
-    if (!function_exists('flashMessage')) {
-        function flashMessage(?string $msg = null, string $type = 'info') {
-            if ($msg === null) {
-                $m = $_SESSION['_flash']['message'] ?? null;
-                $t = $_SESSION['_flash']['type']    ?? 'info';
-                unset($_SESSION['_flash']);
-                return $m ? ['message' => $m, 'type' => $t] : null;
-            }
-            $_SESSION['_flash'] = ['message' => $msg, 'type' => $type];
-            return null;
-        }
-    }
-    if (!function_exists('redirect')) {
-        function redirect(string $url, int $code = 302): void {
-            if (!headers_sent()) { header('Location: ' . $url, true, $code); exit; }
-            echo '<script>window.location.href="', sanitize($url), '";</script>'; exit;
-        }
-    }
-    if (!function_exists('security_log_exception')) {
-        function security_log_exception(Throwable $e, string $contexto = 'geral'): string {
-            $ticket = substr(str_shuffle('ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789'), 0, 12);
-            @error_log('[SEG-'.$ticket.'] '.$contexto.' | '.$e->getMessage().' | arq='.$e->getFile().':'.$e->getLine());
-            return $ticket;
-        }
-    }
-    if (!function_exists('security_mensagem_amigavel')) {
-        function security_mensagem_amigavel(string $ticket): string {
-            return 'Ocorreu um erro interno. Ticket: '.$ticket.'. Contate o suporte.';
-        }
-    }
-    // ---- helpers RBAC ----
-    if (!function_exists('isLoggedIn')) {
-        function isLoggedIn(): bool { return isset($_SESSION['usuario_id']) && (int)$_SESSION['usuario_id'] > 0; }
-    }
-    if (!function_exists('perfilUsuario')) {
-        function perfilUsuario(): string {
-            if (!isLoggedIn()) return '';
-            $p = (string)($_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador'));
-            if ($p === 'admin') $p = 'super_admin';
-            return $p;
-        }
-    }
-    if (!function_exists('isSuperAdmin')) {
-        function isSuperAdmin(): bool { return perfilUsuario() === 'super_admin'; }
-    }
-    if (!function_exists('isAdminCondominio')) {
-        function isAdminCondominio(): bool {
-            $p = perfilUsuario();
-            return $p === 'admin_condominio' || $p === 'super_admin';
-        }
-    }
-    if (!function_exists('isAdmin')) {
-        function isAdmin(): bool { return isSuperAdmin() || isAdminCondominio(); }
-    }
-    if (!function_exists('condominioIdSessao')) {
-        function condominioIdSessao(): ?int {
-            if (!isLoggedIn()) return null;
-            if (isSuperAdmin()) return null;
-            $cid = $_SESSION['condominio_id'] ?? null;
-            return $cid === null ? null : (int)$cid;
-        }
-    }
-    if (!function_exists('tenant_guard')) {
-        function tenant_guard($condominioIdSolicitado): void {
-            $condominioIdSolicitado = (int)$condominioIdSolicitado;
-            if ($condominioIdSolicitado <= 0) return;
-            if (isSuperAdmin()) return;
-            $sess = (int)condominioIdSessao();
-            if ($sess <= 0) {
-                flashMessage('Seu perfil não tem condomínio associado. Contate o suporte.', 'error');
-                redirect(base_url('?route=auth/logout'));
-            }
-            if ($sess !== $condominioIdSolicitado) {
-                flashMessage('Você não tem permissão para acessar dados de outro condomínio.', 'error');
-                redirect(base_url('?route=assembleia/index'));
-            }
-        }
-    }
-    // ---- guards que REDIRECIONAM (versao HARDENED do core_v3) ----
-    if (!function_exists('requireLogin')) {
-        function requireLogin(): void {
-            if (!isLoggedIn()) {
-                flashMessage('Por favor, faça login para continuar.', 'error');
-                redirect(base_url('?route=auth/login'));
-            }
-        }
-    }
-    if (!function_exists('requireAdmin')) {
-        function requireAdmin(): void {
-            requireLogin();
-            if (!isAdmin()) {
-                flashMessage('Você não tem permissão para acessar o painel administrativo.', 'error');
-                redirect(base_url('?route=assembleia/index'));
-            }
-        }
-    }
-    if (!function_exists('requireSuperAdmin')) {
-        function requireSuperAdmin(): void {
-            requireLogin();
-            if (!isSuperAdmin()) {
-                flashMessage('Acesso restrito ao Super Administrador da plataforma.', 'error');
-                redirect(base_url('?route=assembleia/index'));
-            }
-        }
-    }
-    if (!function_exists('requireAdminCondominio')) {
-        function requireAdminCondominio(): void {
-            requireLogin();
-            if (!isAdminCondominio()) {
-                flashMessage('Acesso restrito a gestores(as) de condomínio.', 'error');
-                redirect(base_url('?route=assembleia/index'));
-            }
-        }
-    }
-
-    /**
-     * 👇 Agora sim: carregamos config.php (só serve para credenciais de banco
-     * DB_HOST/DB_USER/DB_PASS/DB_NAME e afins). TODOS os helpers de sessão
-     * e RBAC JÁ FORAM DEFINIDOS por NÓS acima, então qualquer que seja a
-     * versão do config.php no servidor, os nossos helpers prevalecem.
-     */
     $configPath = __DIR__ . '/config.php';
     if (!is_file($configPath)) {
         throw new RuntimeException("Arquivo config.php nao encontrado em " . htmlspecialchars($configPath));
     }
     require_once $configPath;
 
-    /**
-     * Fallback helpers — caso config.php do servidor esteja desatualizado e
-     * nao defina asset_url()/base_url()/sanitize() — definimos aqui TAMBEM
-     * (dupla camada de seguranca).
-     *
-     * Observacao: se config.php jah os definiu (mesmo sem checagem),
-     * os blocos abaixo NAO executam — nunca mais vai dar "redeclare".
-     */
-    if (!defined('URL_BASE')) {
-        $s  = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $sn   = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php')), '/');
-        define('URL_BASE', $s . '://' . $host . ($sn ?: ''));
-    }
-    if (!function_exists('base_url')) {
-        function base_url($path = ''): string {
-            return rtrim(URL_BASE, '/') . '/' . ltrim((string)$path, '/');
-        }
-    }
-    if (!function_exists('sanitize')) {
-        function sanitize($v): string {
-            return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
-        }
-    }
-    // ======================================================================
-    // 🛡️ FALLBACK RBAC + TENANT GUARD (camada dupla! se config.php do
-    // servidor nao foi atualizado — definimos TUDO aqui. Nunca mais vai dar
-    // "Call to undefined function tenant_guard()/isSuperAdmin()").
-    // ATENCAO: ESTES BLOCOS ABAIXO NAO DEVEM MAIS EXECUTAR POIS JA DEFINIMOS
-    // OS HELPERS NO INICIO DO try(). Ficam aqui como DUPLA CAMADA.
-    // ======================================================================
+    // =====================================================================
+    // 🚨 CAMADA 2: FALLBACK HELPERS (URL, CSRF, RBAC) — SÓ SE NÃO EXISTEM
+    //
+    // Todos definidos com `if (!defined / !function_exists)` — para NÃO dar
+    // redeclare se config.php do servidor já declarou eles.
+    // =====================================================================
     if (!function_exists('isLoggedIn')) {
         function isLoggedIn(): bool { return isset($_SESSION['usuario_id']); }
     }
