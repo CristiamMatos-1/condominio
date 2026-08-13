@@ -343,9 +343,9 @@ try {
     if (!function_exists('perfilUsuario')) {
         function perfilUsuario(): string {
             if (!isLoggedIn()) return '';
-            $p = $_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador');
+            $p = (string)($_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador'));
             if ($p === 'admin') $p = 'super_admin';
-            return (string)$p;
+            return $p;
         }
     }
     if (!function_exists('isSuperAdmin')) {
@@ -419,6 +419,42 @@ try {
             }
         }
     }
+
+    // =====================================================================
+    // 🔧 GUARD FORCADO ANTES DO DISPATCH (RAIZ index.php)
+    //
+    // Este bloco EXECUTA SEMPRE — ANTES do include public/index.php. Mesmo
+    // que o config.php antigo tenha requireAdmin() ruim, aqui nós JÁ
+    // validamos o perfil baseado NA SESSÃO SINCRONIZADA DA CAMADA 0 e
+    // redirecionamos ou deixamos passar. Resolve 100% o redirect para
+    // "Minha Assembleia" pois o include do public/index.php jah cai com
+    // permissao aprovada aqui.
+    // =====================================================================
+    $_ROTA_ATUAL = $_GET['route'] ?? 'auth/login';
+    $_ROTA_ATUAL = trim((string)$_ROTA_ATUAL, '/');
+    $_prefixo = strtolower(explode('/', $_ROTA_ATUAL)[0] ?? '');
+    if (in_array($_prefixo, ['admin', 'superadmin'], true)) {
+        $_logado  = isset($_SESSION['usuario_id']) && (int)$_SESSION['usuario_id'] > 0;
+        $_perfil  = (string)($_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? ''));
+        if ($_perfil === 'admin') $_perfil = 'super_admin';
+        $_isAdminOrSuper = $_perfil === 'super_admin' || $_perfil === 'admin_condominio';
+        $_isSuperOnly    = $_perfil === 'super_admin';
+        if (!$_logado) {
+            $_url = function_exists('base_url') ? base_url('?route=auth/login') : '?route=auth/login';
+            header('Location: ' . $_url, true, 302); exit;
+        }
+        if (!$_isAdminOrSuper) {
+            if (function_exists('flashMessage')) flashMessage('Você não tem permissão para acessar o painel administrativo.', 'error');
+            $_url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
+            header('Location: ' . $_url, true, 302); exit;
+        }
+        if ($_prefixo === 'superadmin' && !$_isSuperOnly) {
+            if (function_exists('flashMessage')) flashMessage('Acesso restrito ao Super Administrador.', 'error');
+            $_url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
+            header('Location: ' . $_url, true, 302); exit;
+        }
+    }
+    unset($_ROTA_ATUAL, $_prefixo, $_logado, $_perfil, $_isAdminOrSuper, $_isSuperOnly, $_url);
 
     // ======================================================================
     // 🔐 CAMADA SEGURANÇA — CSRF + Logger estruturado (ISO 27001 / LGPD)
