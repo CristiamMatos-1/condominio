@@ -12,7 +12,14 @@
  */
 
 // ============== [ COLOCAR 0 PARA DESATIVAR DEBUG DEPOIS ] ==============
-if (!defined('CONDOMINIO_DEBUG')) define('CONDOMINIO_DEBUG', 1);
+// DEBUG=0 em PRODUÇÃO:
+//   - Não exibe banner DEBUG RBAC laranja no topo das telas admin.
+//   - Não exibe stack trace de exceções / erros PHP para o usuário final
+//     (continua logando tudo no error_php.log, sem perder visibilidade).
+//   - Mantém ini_set('log_errors', 1) com log estruturado → erro fica
+//     disponível para a gente analisar via FTP / phpMyAdmin sem expor
+//     dados sensíveis (paths absolutos, DB name, queries etc.) ao usuário.
+if (!defined('CONDOMINIO_DEBUG')) define('CONDOMINIO_DEBUG', 0);
 
 // ---- Forca exibicao de erros (elimina pagina em branco!) ----
 if (CONDOMINIO_DEBUG) {

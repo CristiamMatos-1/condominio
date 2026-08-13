@@ -1,5 +1,31 @@
 <?php
 // ==========================================================================
+// 🔧 CONSTANTE GLOBAL DE DEBUG (PRODUÇÃO == 0)
+//
+// Tem que ficar ANTES de qualquer coisa para:
+//   - Layout header_admin.php não imprimir o banner DEBUG RBAC laranja.
+//   - Front controller não exibir stack trace de Exception pro usuário final.
+// Obs: mantemos log_errors=1, então tudo continua gravado em error_php.log
+// para análise posterior (não perdemos visibilidade nenhuma).
+// ==========================================================================
+if (!defined('CONDOMINIO_DEBUG')) define('CONDOMINIO_DEBUG', 0);
+
+// ---- Forca exibicao de erros APENAS para LOG (display_errors = 0 em prod) ----
+if (CONDOMINIO_DEBUG) {
+    @ini_set('display_errors',        1);
+    @ini_set('display_startup_errors',1);
+    @ini_set('html_errors',         1);
+    error_reporting(E_ALL);
+} else {
+    @ini_set('display_errors',        0);
+    @ini_set('display_startup_errors',0);
+    @ini_set('html_errors',           0);
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+}
+@ini_set('log_errors', 1);
+@ini_set('error_log',  dirname(__DIR__) . '/error_php.log');
+
+// ==========================================================================
 // 🚨 CAMADA 0: SESSÃO + SYNC RBAC (ANTES DE TUDO)
 //
 // Objetivo: garantimos que $_SESSION estah disponivel e consistente MESMO
