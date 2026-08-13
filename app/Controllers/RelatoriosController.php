@@ -8,7 +8,7 @@ class RelatoriosController
 
     public function __construct()
     {
-        requireLogin();
+        rbac_require_login();
         $this->assembleiaModel  = new AssembleiaModel();
         $this->pautaModel       = new PautaModel();
         $this->chapaModel       = new ChapaModel();
@@ -16,7 +16,7 @@ class RelatoriosController
 
     public function presenca($id)
     {
-        if (!isAdmin()) {
+        if (!rbac_is_admin()) {
             flashMessage('Acesso negado.', 'error');
             redirect(base_url('?route=assembleia/index'));
         }
@@ -41,7 +41,7 @@ class RelatoriosController
 
     public function resultados($id)
     {
-        if (!isAdmin()) {
+        if (!rbac_is_admin()) {
             flashMessage('Acesso negado.', 'error');
             redirect(base_url('?route=assembleia/index'));
         }

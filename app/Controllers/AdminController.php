@@ -26,7 +26,7 @@ class AdminController
 
     public function __construct()
     {
-        requireAdmin();
+        rbac_require_admin();
         $this->condominioModel  = new CondominioModel();
         $this->usuarioModel     = new UsuarioModel();
         $this->unidadeModel     = new UnidadeModel();
@@ -57,8 +57,8 @@ class AdminController
         // veio por engano e queremos manter o fluxo inicial. Mas aqui nós
         // deixamos ele ficar (menu do Painel Admin Geral é útil para gestão
         // global de usuários, unidades, procurações, assembleias).
-        $condominioId = condominioIdSessao();
-        if (!isSuperAdmin() && $condominioId === null) {
+        $condominioId = rbac_condominio_id();
+        if (!rbac_is_super_admin() && $condominioId === null) {
             // admin_condominio sem condominio_id vinculado — tenta log out.
             flashMessage('Conta de gestor(a) não está vinculada a um condomínio. Contate o suporte.', 'error');
             redirect(base_url('?route=auth/logout'));
@@ -81,7 +81,7 @@ class AdminController
     // =======================================================================
     public function condominios()
     {
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             flashMessage('Acesso restrito ao Super Administrador.', 'error');
             redirect(base_url('?route=admin/index'));
         }
@@ -91,7 +91,7 @@ class AdminController
 
     public function condominio_novo()
     {
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             flashMessage('Acesso restrito ao Super Administrador.', 'error');
             redirect(base_url('?route=admin/index'));
         }
@@ -113,7 +113,7 @@ class AdminController
 
     public function condominio_editar($id)
     {
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             flashMessage('Acesso restrito ao Super Administrador.', 'error');
             redirect(base_url('?route=admin/index'));
         }
@@ -140,7 +140,7 @@ class AdminController
 
     public function condominio_excluir($id)
     {
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             flashMessage('Acesso restrito ao Super Administrador.', 'error');
             redirect(base_url('?route=admin/index'));
         }
@@ -166,10 +166,10 @@ class AdminController
     // =======================================================================
     public function usuarios()
     {
-        if (isSuperAdmin()) {
+        if (rbac_is_super_admin()) {
             $usuarios = $this->usuarioModel->getAll();
         } else {
-            $cid = condominioIdSessao();
+            $cid = rbac_condominio_id();
             $usuarios = $this->usuarioModel->getAll(null, 1, null, $cid);
         }
         $this->render('usuarios', compact('usuarios'));
@@ -184,8 +184,8 @@ class AdminController
                 $payload = $this->payloadUsuarioCriar($_POST);
                 // Segurança: se é admin_condominio logado, FORÇA o condomínio_id
                 // da sessão — evita criar usuário em outro tenant via manipulacao de HTML.
-                if (!isSuperAdmin()) {
-                    $payload['condominio_id'] = condominioIdSessao();
+                if (!rbac_is_super_admin()) {
+                    $payload['condominio_id'] = rbac_condominio_id();
                     $payload['perfil']        = 'morador';
                     $payload['tipo']          = 'morador';
                 }
@@ -204,7 +204,7 @@ class AdminController
             }
             redirect($fallback);
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
         $this->render('usuario_form', ['usuario' => null, 'condominios' => $condominios]);
     }
 
@@ -217,8 +217,8 @@ class AdminController
             redirect($fallback);
         }
         // Segurança: admin_condominio só pode editar usuários do SEU tenant.
-        if (!isSuperAdmin()) {
-            $cidSessao = (int)condominioIdSessao();
+        if (!rbac_is_super_admin()) {
+            $cidSessao = (int)rbac_condominio_id();
             if ((int)($usuario['condominio_id'] ?? 0) !== $cidSessao || (int)$cidSessao <= 0) {
                 flashMessage('Você não tem permissão para editar este usuário.', 'error');
                 redirect($fallback);
@@ -230,10 +230,10 @@ class AdminController
                 $payload = $this->payloadUsuarioAtualizar($_POST);
                 // Super admin pode trocar perfil e condomínio_id.
                 // Admin_condominio NÃO pode: trava no seu tenant e perfíl = morador.
-                if (!isSuperAdmin()) {
+                if (!rbac_is_super_admin()) {
                     $payload['perfil']        = 'morador';
                     $payload['tipo']          = 'morador';
-                    $payload['condominio_id'] = condominioIdSessao();
+                    $payload['condominio_id'] = rbac_condominio_id();
                     // Admin_condominio não pode alterar CPF de terceiros:
                     unset($payload['cpf']);
                 }
@@ -246,7 +246,7 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
         $this->render('usuario_form', compact('usuario', 'condominios'));
     }
 
@@ -258,8 +258,8 @@ class AdminController
             flashMessage('Usuário não encontrado.', 'error');
             redirect($fallback);
         }
-        if (!isSuperAdmin()) {
-            $cidSessao = (int)condominioIdSessao();
+        if (!rbac_is_super_admin()) {
+            $cidSessao = (int)rbac_condominio_id();
             if ((int)($usuario['condominio_id'] ?? 0) !== $cidSessao) {
                 flashMessage('Você não tem permissão para excluir este usuário.', 'error');
                 redirect($fallback);
@@ -349,7 +349,7 @@ class AdminController
     {
         if ($condominioId === null) return;
         if ((int)$condominioId <= 0) return;
-        tenant_guard($condominioId);
+        rbac_tenant_guard($condominioId);
     }
 
     public function pauta_desativar($id)
@@ -367,7 +367,7 @@ class AdminController
 
     public function unidades()
     {
-        $cid = condominioIdSessao();
+        $cid = rbac_condominio_id();
         $unidades = $this->unidadeModel->getAll($cid);
         $this->render('unidades', compact('unidades'));
     }
@@ -378,7 +378,7 @@ class AdminController
             csrf_token_verify(true, $fallback);
             try {
                 $payload = $this->payloadUnidade($_POST);
-                if (!isSuperAdmin()) $payload['condominio_id'] = condominioIdSessao();
+                if (!rbac_is_super_admin()) $payload['condominio_id'] = rbac_condominio_id();
                 $this->unidadeModel->create($payload);
                 flashMessage('Unidade cadastrada com sucesso!', 'success');
                 redirect($fallback);
@@ -395,10 +395,10 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
-        $moradores = isSuperAdmin()
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
+        $moradores = rbac_is_super_admin()
             ? $this->usuarioModel->getAll(null, 1, 'morador')
-            : $this->usuarioModel->getAll(null, 1, 'morador', condominioIdSessao());
+            : $this->usuarioModel->getAll(null, 1, 'morador', rbac_condominio_id());
         $this->render('unidade_form', ['unidade' => null, 'condominios' => $condominios, 'moradores' => $moradores]);
     }
     public function unidade_editar($id)
@@ -411,7 +411,7 @@ class AdminController
             csrf_token_verify(true, $fallback);
             try {
                 $payload = $this->payloadUnidade($_POST);
-                if (!isSuperAdmin()) $payload['condominio_id'] = condominioIdSessao();
+                if (!rbac_is_super_admin()) $payload['condominio_id'] = rbac_condominio_id();
                 $this->unidadeModel->update($unidade['id'], $payload);
                 flashMessage('Unidade atualizada com sucesso!', 'success');
                 redirect($fallback);
@@ -421,10 +421,10 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
-        $moradores = isSuperAdmin()
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
+        $moradores = rbac_is_super_admin()
             ? $this->usuarioModel->getAll(null, 1, 'morador')
-            : $this->usuarioModel->getAll(null, 1, 'morador', condominioIdSessao());
+            : $this->usuarioModel->getAll(null, 1, 'morador', rbac_condominio_id());
         $this->render('unidade_form', compact('unidade', 'condominios', 'moradores'));
     }
     public function unidade_excluir($id)
@@ -457,7 +457,7 @@ class AdminController
 
     public function procuracoes()
     {
-        $cid = condominioIdSessao();
+        $cid = rbac_condominio_id();
         $procuracoes = $this->procuracaoModel->getAll($cid);
         $this->render('procuracoes', compact('procuracoes'));
     }
@@ -479,10 +479,10 @@ class AdminController
                     'data_validade'    => $_POST['data_validade'] ?? null,
                     'ativo'            => isset($_POST['ativo']) ? (int)$_POST['ativo'] : 1,
                 ];
-                if (!isSuperAdmin()) {
+                if (!rbac_is_super_admin()) {
                     // Valida que a unidade pertence ao tenant do admin_condominio
                     $u = $this->unidadeModel->getById($unidadeId);
-                    if (!$u || (int)$u['condominio_id'] !== (int)condominioIdSessao()) {
+                    if (!$u || (int)$u['condominio_id'] !== (int)rbac_condominio_id()) {
                         flashMessage('Unidade não pertence ao seu condomínio.', 'error');
                         redirect($fallback);
                     }
@@ -496,9 +496,9 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $cid = condominioIdSessao();
-        $unidades = isSuperAdmin() ? $this->unidadeModel->getAll(null, 1) : $this->unidadeModel->getAll($cid, 1);
-        $moradores = isSuperAdmin()
+        $cid = rbac_condominio_id();
+        $unidades = rbac_is_super_admin() ? $this->unidadeModel->getAll(null, 1) : $this->unidadeModel->getAll($cid, 1);
+        $moradores = rbac_is_super_admin()
             ? $this->usuarioModel->getAll(null, 1, 'morador')
             : $this->usuarioModel->getAll(null, 1, 'morador', $cid);
         $this->render('procuracao_form', ['procuracao' => null, 'unidades' => $unidades, 'moradores' => $moradores]);
@@ -508,9 +508,9 @@ class AdminController
         $fallback = base_url('?route=admin/procuracoes');
         $procuracao = $this->procuracaoModel->getById($id);
         if (!$procuracao) { flashMessage('Procuração não encontrada.', 'error'); redirect($fallback); }
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             $u = $this->unidadeModel->getById($procuracao['unidade_id']);
-            if (!$u || (int)$u['condominio_id'] !== (int)condominioIdSessao()) {
+            if (!$u || (int)$u['condominio_id'] !== (int)rbac_condominio_id()) {
                 flashMessage('Você não tem permissão para editar esta procuração.', 'error');
                 redirect($fallback);
             }
@@ -539,9 +539,9 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $cid = condominioIdSessao();
-        $unidades  = isSuperAdmin() ? $this->unidadeModel->getAll(null, 1) : $this->unidadeModel->getAll($cid, 1);
-        $moradores = isSuperAdmin()
+        $cid = rbac_condominio_id();
+        $unidades  = rbac_is_super_admin() ? $this->unidadeModel->getAll(null, 1) : $this->unidadeModel->getAll($cid, 1);
+        $moradores = rbac_is_super_admin()
             ? $this->usuarioModel->getAll(null, 1, 'morador')
             : $this->usuarioModel->getAll(null, 1, 'morador', $cid);
         $this->render('procuracao_form', compact('procuracao', 'unidades', 'moradores'));
@@ -551,9 +551,9 @@ class AdminController
         $fallback = base_url('?route=admin/procuracoes');
         $procuracao = $this->procuracaoModel->getById($id);
         if (!$procuracao) { flashMessage('Procuração não encontrada.', 'error'); redirect($fallback); }
-        if (!isSuperAdmin()) {
+        if (!rbac_is_super_admin()) {
             $u = $this->unidadeModel->getById($procuracao['unidade_id']);
-            if (!$u || (int)$u['condominio_id'] !== (int)condominioIdSessao()) {
+            if (!$u || (int)$u['condominio_id'] !== (int)rbac_condominio_id()) {
                 flashMessage('Você não tem permissão para excluir esta procuração.', 'error');
                 redirect($fallback);
             }
@@ -571,7 +571,7 @@ class AdminController
 
     public function assembleias()
     {
-        $assembleias = $this->assembleiaModel->getAll(condominioIdSessao());
+        $assembleias = $this->assembleiaModel->getAll(rbac_condominio_id());
         $this->render('assembleias', compact('assembleias'));
     }
     public function assembleia_nova()
@@ -581,7 +581,7 @@ class AdminController
             csrf_token_verify(true, $fallback);
             try {
                 $payload = $this->payloadAssembleia($_POST);
-                if (!isSuperAdmin()) $payload['condominio_id'] = condominioIdSessao();
+                if (!rbac_is_super_admin()) $payload['condominio_id'] = rbac_condominio_id();
                 $this->assembleiaModel->create($payload);
                 flashMessage('Assembleia cadastrada com sucesso!', 'success');
                 redirect($fallback);
@@ -591,7 +591,7 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
         $this->render('assembleia_form', ['assembleia' => null, 'condominios' => $condominios]);
     }
     public function assembleia_editar($id)
@@ -604,7 +604,7 @@ class AdminController
             csrf_token_verify(true, $fallback);
             try {
                 $payload = $this->payloadAssembleia($_POST);
-                if (!isSuperAdmin()) $payload['condominio_id'] = condominioIdSessao();
+                if (!rbac_is_super_admin()) $payload['condominio_id'] = rbac_condominio_id();
                 $this->assembleiaModel->update($assembleia['id'], $payload);
                 flashMessage('Assembleia atualizada com sucesso!', 'success');
                 redirect($fallback);
@@ -614,7 +614,7 @@ class AdminController
                 redirect($fallback);
             }
         }
-        $condominios = isSuperAdmin() ? $this->condominioModel->getAll(1) : [];
+        $condominios = rbac_is_super_admin() ? $this->condominioModel->getAll(1) : [];
         $this->render('assembleia_form', compact('assembleia', 'condominios'));
     }
     public function assembleia_excluir($id)

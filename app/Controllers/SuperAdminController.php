@@ -24,7 +24,7 @@ class SuperAdminController
 
     public function __construct()
     {
-        requireSuperAdmin(); // 🔒 trava de perfil obrigatória (REQUISITO 1)
+        rbac_require_super_admin();
         $this->condominioModel = new CondominioModel();
         $this->usuarioModel    = new UsuarioModel();
         $this->unidadeModel    = new UnidadeModel();

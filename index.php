@@ -255,6 +255,15 @@ try {
     }
 
     // =====================================================================
+    // 🔧 CAMADA 2.75: CARREGAR RBAC CORE V3 HELPER ÚNICO
+    // (Mantido aqui para consistência, mesmo que o public/index.php já
+    // carregue — require_once evita dupla carga.)
+    // =====================================================================
+    $rbacCoreV3Helper = __DIR__ . '/app/Helpers/rbac_core_v3.php';
+    if (is_file($rbacCoreV3Helper)) require_once $rbacCoreV3Helper;
+    unset($rbacCoreV3Helper);
+
+    // =====================================================================
     // 🔧 GUARD FORCADO ANTES DO DISPATCH (RAIZ index.php)
     //
     // Este bloco EXECUTA SEMPRE — ANTES do include public/index.php. Mesmo

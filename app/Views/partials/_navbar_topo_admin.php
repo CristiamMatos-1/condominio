@@ -4,7 +4,7 @@
  * Barra de navegação superior responsiva com menu hamburguer em mobile (<768px)
  * Usada em todas páginas do admin em conjunto com _header_admin.php
  */
-$isAdmin = isAdmin();
+$isAdmin = rbac_is_admin();
 $userNome = $_SESSION['usuario_nome'] ?? 'Visitante';
 $userCpf  = formatCpf($_SESSION['usuario_cpf'] ?? '00000000000');
 ?>

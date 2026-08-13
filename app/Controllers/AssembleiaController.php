@@ -10,7 +10,7 @@ class AssembleiaController
 
     public function __construct()
     {
-        requireLogin();
+        rbac_require_login();
         $this->assembleiaModel  = new AssembleiaModel();
         $this->unidadeModel     = new UnidadeModel();
         $this->procuracaoModel  = new ProcuracaoModel();
@@ -51,10 +51,10 @@ class AssembleiaController
         }
 
         $condominioId = $assembleia['condominio_id'];
-        tenant_guard($condominioId); // Tenant Isolation OBRIGATÓRIO
+        rbac_tenant_guard($condominioId); // Tenant Isolation OBRIGATÓRIO
         $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $id, $condominioId);
 
-        if (empty($unidades) && !isAdmin()) {
+        if (empty($unidades) && !rbac_is_admin()) {
             flashMessage('Você não tem permissão para acessar esta assembleia.', 'error');
             redirect(base_url('?route=assembleia/index'));
         }
@@ -120,7 +120,7 @@ class AssembleiaController
         $usuarioId = $_SESSION['usuario_id'];
         $assembleiaId = $pauta['assembleia_id'];
         $assembleia   = $this->assembleiaModel->getById($assembleiaId);
-        if ($assembleia) tenant_guard($assembleia['condominio_id']);
+        if ($assembleia) rbac_tenant_guard($assembleia['condominio_id']);
         if ($assembleia && in_array($assembleia['status'], ['Encerrada','Fechada'])) {
             flashMessage('Votação encerrada. Não é mais possível registrar votos.', 'error');
             redirect(base_url('?route=assembleia/ver/' . $assembleiaId));
@@ -186,7 +186,7 @@ class AssembleiaController
         $usuarioId = $_SESSION['usuario_id'];
         $assembleiaId = $chapa['assembleia_id'];
         $assembleia   = $this->assembleiaModel->getById($assembleiaId);
-        if ($assembleia) tenant_guard($assembleia['condominio_id']);
+        if ($assembleia) rbac_tenant_guard($assembleia['condominio_id']);
         if ($assembleia && in_array($assembleia['status'], ['Encerrada','Fechada'])) {
             flashMessage('Votação encerrada. Não é mais possível registrar votos.', 'error');
             redirect(base_url('?route=assembleia/ver/' . $assembleiaId));

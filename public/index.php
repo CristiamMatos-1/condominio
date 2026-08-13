@@ -166,6 +166,22 @@ if (!function_exists('requireAdmin')) {
 }
 
 // ==========================================================================
+// 🔧 CAMADA 2.75: CARREGAR RBAC CORE V3 HELPER ÚNICO
+//
+// Este helper:
+//   - Define funções PREFIXADAS rbac_* (nunca conflitam).
+//   - Tenta sobrescrever funções globais ANTIGAS (isSuperAdmin, requireAdmin,
+//     tenant_guard etc.) via runkit7/uopz/runkit se extensões estiverem lá.
+//   - Seta $_SESSION['RBAC_CORE_V3_APLICADO'] e família.
+//
+// Precisa carregar ANTES dos controllers (pois __construct deles chama
+// rbac_require_admin() e todas chamadas internas agora usam rbac_*).
+// ==========================================================================
+$rbacCoreV3Helper = __DIR__ . '/../app/Helpers/rbac_core_v3.php';
+if (is_file($rbacCoreV3Helper)) require_once $rbacCoreV3Helper;
+unset($rbacCoreV3Helper);
+
+// ==========================================================================
 // 🔧 CAMADA RBAC OVERRIDE (POST-CONFIG, ZERO RISCO de Fatal)
 //
 // Problema: config.php do servidor pode ter declarado isAdmin/perfilUsuario/
