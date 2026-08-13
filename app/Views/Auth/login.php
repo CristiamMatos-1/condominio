@@ -91,6 +91,63 @@
             </button>
 
             <div class="login-divider">Acesso Seguro · Sem senha para Condôminos</div>
+
+            <!-- ===== Cards de Acesso Rápido (Síndico/Gestor + Super Admin) ===== -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:8px;margin-bottom:8px;">
+                <!-- Link 1: SÍNDICO / GESTOR do Condomínio -->
+                <button type="button"
+                        class="btn-ci btn-ci-outline"
+                        style="
+                            text-align:left;
+                            padding:14px 16px;
+                            border:1.5px solid var(--color-secondary,#D97706);
+                            background:linear-gradient(90deg,#FFFBEB 0%,#FEF3C7 100%);
+                            color:#92400E;
+                            box-shadow:var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+                        "
+                        data-papel="admin_condominio"
+                        aria-label="Acesso rápido do síndico ou gestor do condomínio">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="
+                            width:40px;height:40px;border-radius:10px;
+                            background:var(--color-secondary,#D97706);
+                            color:white;display:grid;place-items:center;font-size:1.1rem;flex-shrink:0;
+                        ">🧑‍💼</span>
+                        <div style="line-height:1.2;">
+                            <div style="font-weight:700;font-size:1rem;color:#92400E;">Acesso Síndico / Gestor</div>
+                            <small style="color:#78350F;">Administrador do seu condomínio</small>
+                        </div>
+                    </div>
+                </button>
+                <!-- Link 2: SUPER ADMIN (Administrador da Plataforma / Suporte) -->
+                <button type="button"
+                        class="btn-ci btn-ci-outline"
+                        style="
+                            text-align:left;
+                            padding:14px 16px;
+                            border:1.5px solid var(--color-primary,#1E40AF);
+                            background:linear-gradient(90deg,#EFF6FF 0%,#DBEAFE 100%);
+                            color:#1E3A8A;
+                            box-shadow:var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+                        "
+                        data-papel="super_admin"
+                        aria-label="Acesso rápido do super administrador da plataforma">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="
+                            width:40px;height:40px;border-radius:10px;
+                            background:var(--color-primary,#1E40AF);
+                            color:white;display:grid;place-items:center;font-size:1.1rem;flex-shrink:0;
+                        ">🛡️</span>
+                        <div style="line-height:1.2;">
+                            <div style="font-weight:700;font-size:1rem;color:#1E3A8A;">Acesso Super Admin</div>
+                            <small style="color:#1E40AF;">Administrador Geral da Plataforma</small>
+                        </div>
+                    </div>
+                </button>
+            </div>
+            <p class="hint" style="margin:8px 0 0 0;font-size:.78rem;text-align:center;color:var(--color-text-muted,#6B7280);">
+                💡 Clique em um dos cards acima para preencher automaticamente o CPF e ativar o campo de senha.
+            </p>
         </form>
 
         <footer class="login-footer-ci">
@@ -123,6 +180,16 @@
             senha.removeAttribute('required');
             senha.value = '';
         }
+        function mascararCpf(valorRaw) {
+            const v = (valorRaw || '').replace(/\D/g,'').slice(0,11);
+            if (v.length > 9)  return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2})/,  '$1.$2.$3-$4');
+            if (v.length > 6)  return v.replace(/^(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+            if (v.length > 3)  return v.replace(/^(\d{3})(\d{0,3})/,       '$1.$2');
+            return v;
+        }
+        cpf.addEventListener('input', function(){
+            this.value = mascararCpf(this.value);
+        });
         cpf.addEventListener('blur', function () {
             const raw = (this.value || '').replace(/\D/g,'');
             if (raw === '00000000000') adminOn(); else adminOff();
@@ -131,6 +198,39 @@
         form.addEventListener('submit', function () {
             btnEntrar.disabled = true;
             btnEntrar.innerHTML = '⌛ Processando...';
+        });
+
+        // ========= CARDS DE ACESSO RAPIDO (botões) =========
+        // - Clique preenche CPF do perfil e abre campo senha.
+        //
+        // Obs.: O CPF do SÍNDICO/GESTOR aqui é apenas um guia visual
+        // (cada condomínio tem o seu). O usuário troca pelo seu CPF
+        // real de gestor e digita sua senha cadastrada.
+        // O CPF 000.000.000-00 é o SUPER ADMIN fixo da plataforma.
+        document.querySelectorAll('[data-papel]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const papel = this.getAttribute('data-papel');
+                if (papel === 'super_admin') {
+                    // Super Admin = CPF master 000.000.000-00
+                    cpf.value = mascararCpf('00000000000');
+                    adminOn();
+                } else if (papel === 'admin_condominio') {
+                    // Síndico / Gestor — coloca placeholder e dá foco no CPF
+                    cpf.value = '';
+                    cpf.placeholder = 'Digite o CPF do(a) Síndico(a)/Gestor(a)';
+                    cpf.focus();
+                    // Marca o input com uma borda dourada (feedback visual)
+                    cpf.style.outline = '2px solid #D97706';
+                    cpf.style.outlineOffset = '2px';
+                    setTimeout(function(){
+                        cpf.style.outline = '';
+                        cpf.style.outlineOffset = '';
+                        cpf.placeholder = '000.000.000-00';
+                    }, 2500);
+                    // Abre campo senha (pois gestor tambem tem senha administrativa)
+                    adminOn();
+                }
+            });
         });
     })();
     </script>
