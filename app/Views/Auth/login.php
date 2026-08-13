@@ -206,13 +206,12 @@
         // Obs.: O CPF do SÍNDICO/GESTOR aqui é apenas um guia visual
         // (cada condomínio tem o seu). O usuário troca pelo seu CPF
         // real de gestor e digita sua senha cadastrada.
-        // O CPF 000.000.000-00 é o SUPER ADMIN fixo da plataforma.
+        // O CPF 922.633.991-00 é o SUPER ADMIN fixo da plataforma.
         document.querySelectorAll('[data-papel]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const papel = this.getAttribute('data-papel');
                 if (papel === 'super_admin') {
-                    // Super Admin = CPF master 000.000.000-00
-                    cpf.value = mascararCpf('00000000000');
+                    cpf.value = mascararCpf('92263399100');
                     adminOn();
                 } else if (papel === 'admin_condominio') {
                     // Síndico / Gestor — coloca placeholder e dá foco no CPF
