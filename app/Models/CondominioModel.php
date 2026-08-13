@@ -110,7 +110,7 @@ class CondominioModel
         $sql    = "SELECT COUNT(*) as total FROM condominios WHERE 1=1";
         $params = [];
         if ($ativo !== null) {
-            $sql .= " WHERE ativo = :ativo";
+            $sql .= " AND ativo = :ativo";
             $params[':ativo'] = $ativo;
         }
         $result = $this->db->fetchOne($sql, $params);

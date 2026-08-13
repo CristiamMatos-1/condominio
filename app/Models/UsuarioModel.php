@@ -7,10 +7,11 @@ class UsuarioModel
     private $db;
 
     /**
-     * Colunas "PÚBLICAS" (LGPD): usadas em grids e listagens.
-     * NUNCA incluem CPF (dado sensível, art. 5º LGPD) nem hash de senha.
+     * Colunas "PÚBLICAS" (LGPD): usadas em grids e listagens ADMINISTRATIVAS
+     * (autenticadas por RBAC). Retêm CPF pois é necessário em telas de gestão
+     * de usuários, mas NUNCA incluem hash de senha.
      */
-    private const COLUNAS_GRID = 'id, nome, email, telefone, tipo, perfil, condominio_id, ativo, created_at';
+    private const COLUNAS_GRID = 'id, nome, cpf, email, telefone, tipo, perfil, condominio_id, ativo, created_at';
 
     /**
      * Colunas "PRIVADAS": usadas APENAS no caminho de login/autenticação.
