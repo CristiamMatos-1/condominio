@@ -18,6 +18,15 @@ class AuthController
     public function login()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $fallback = base_url('?route=auth/login');
+            try {
+                csrf_token_verify(true, $fallback);
+            } catch (Throwable $e) {
+                // Helper jah faz redirect. Este bloco é apenas fallback.
+                security_log_exception($e, 'Auth->login(csrf)');
+                redirect($fallback);
+            }
+
             $cpf = $_POST['cpf'] ?? '';
             $cpfLimpo = preg_replace('/\D/', '', $cpf);
             $senha = $_POST['senha'] ?? '';
@@ -27,7 +36,13 @@ class AuthController
                 redirect(base_url('?route=auth/login'));
             }
 
-            $usuario = $this->usuarioModel->getByCpfRaw($cpfLimpo);
+            try {
+                $usuario = $this->usuarioModel->getByCpfRaw($cpfLimpo);
+            } catch (Throwable $e) {
+                $ticket = security_log_exception($e, 'Auth->login busca usuario CPF=' . substr($cpfLimpo, 0, 3) . '***' . substr($cpfLimpo, -2));
+                flashMessage(security_mensagem_amigavel($ticket), 'error');
+                redirect($fallback);
+            }
 
             if (!$usuario) {
                 flashMessage('CPF não encontrado no sistema. Contate o síndico.', 'error');
@@ -39,15 +54,20 @@ class AuthController
                 redirect(base_url('?route=auth/login'));
             }
 
-            if ($usuario['tipo'] === 'admin' && !empty($senha)) {
-                if (!$this->usuarioModel->verificaSenha($usuario['id'], $senha)) {
-                    flashMessage('Senha incorreta.', 'error');
-                    redirect(base_url('?route=auth/login'));
+            $precisaSenha = false;
+            $perfilRaw = (string)($usuario['perfil'] ?? $usuario['tipo']);
+            if ($perfilRaw === 'admin' || $perfilRaw === 'super_admin' || $perfilRaw === 'admin_condominio') $precisaSenha = true;
+            if (!$precisaSenha && !empty($usuario['senha']) && $senha !== '') $precisaSenha = true;
+
+            if ($precisaSenha) {
+                try {
+                    $senhaValida = $this->usuarioModel->verificaSenha($usuario['id'], (string)$senha);
+                } catch (Throwable $e) {
+                    $ticket = security_log_exception($e, 'Auth->login verifica senha');
+                    flashMessage(security_mensagem_amigavel($ticket), 'error');
+                    redirect($fallback);
                 }
-            } elseif ($usuario['tipo'] !== 'admin' && !empty($usuario['senha']) && !empty($senha)) {
-                // Qualquer perfil NAO-admin (admin_condominio ou morador) com senha cadastrada
-                // pode validar via senha tambem (flexibilidade).
-                if (!$this->usuarioModel->verificaSenha($usuario['id'], $senha)) {
+                if (!$senhaValida) {
                     flashMessage('Senha incorreta.', 'error');
                     redirect(base_url('?route=auth/login'));
                 }
@@ -57,21 +77,25 @@ class AuthController
             $perfil = (string)($usuario['perfil'] ?? $usuario['tipo']);
             if ($perfil === 'admin') $perfil = 'super_admin'; // compat legado migration 003
 
-            $_SESSION['usuario_id']   = (int)$usuario['id'];
-            $_SESSION['usuario_nome'] = $usuario['nome'];
-            $_SESSION['usuario_cpf']  = $usuario['cpf'];
-            $_SESSION['usuario_tipo'] = $usuario['tipo'];   // legado
-            $_SESSION['usuario_perfil'] = $perfil;          // principal
+            $_SESSION['usuario_id']     = (int)$usuario['id'];
+            $_SESSION['usuario_nome']   = $usuario['nome'];
+            $_SESSION['usuario_cpf']    = $usuario['cpf'];
+            $_SESSION['usuario_tipo']   = $usuario['tipo'];   // legado
+            $_SESSION['usuario_perfil'] = $perfil;            // principal
             $_SESSION['condominio_id']  = !empty($usuario['condominio_id']) ? (int)$usuario['condominio_id'] : null;
 
             // ======= REDIRECIONAMENTO INTELIGENTE POR PERFIL =======
-            // 1) SUPER ADMIN e ADMIN CONDOMINIO → vão para painel administrativo
-            if ($perfil === 'super_admin' || $perfil === 'admin_condominio') {
-                flashMessage('Bem-vindo(a), ' . $usuario['nome'] . '!', 'success');
+            // 1) SUPER ADMIN → DIRETO para dashboard global SaaS.
+            if ($perfil === 'super_admin') {
+                flashMessage('Bem-vindo(a), ' . $usuario['nome'] . '! Acesso: Super Administrador (Plataforma SaaS).', 'success');
+                redirect(base_url('?route=superadmin/index'));
+            }
+            // 2) ADMIN CONDOMÍNIO → painel do admin (visão tenant).
+            if ($perfil === 'admin_condominio') {
+                flashMessage('Bem-vindo(a), ' . $usuario['nome'] . '! Acesso: Gestor do Condomínio.', 'success');
                 redirect(base_url('?route=admin/index'));
             }
-
-            // 2) MORADOR → procura assembleia ABERTA automatica do seu condominio
+            // 3) MORADOR → monta presença automática em assembleia aberta.
             $assembleiasAbertas = $this->assembleiaModel->getAbertaParaUsuario($usuario['id']);
 
             if (count($assembleiasAbertas) === 1) {
@@ -93,7 +117,7 @@ class AuthController
             'flash' => flashMessage(),
         ];
 
-        extract($data);
+        extract($data, EXTR_SKIP);
         require __DIR__ . '/../Views/Auth/login.php';
     }
 

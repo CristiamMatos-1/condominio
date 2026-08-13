@@ -146,7 +146,7 @@
                 </button>
             </div>
             <p class="hint" style="margin:8px 0 0 0;font-size:.78rem;text-align:center;color:var(--color-text-muted,#6B7280);">
-                💡 Clique em um dos cards acima para preencher automaticamente o CPF e ativar o campo de senha.
+                💡 Clique em um dos cards acima para ativar o campo de senha e digitar o seu CPF.
             </p>
             <?= csrf_field() ?>
         </form>
@@ -247,19 +247,31 @@
         });
 
         // ========= CARDS DE ACESSO RAPIDO (botões) =========
-        // - Clique preenche CPF do perfil e abre campo senha.
-        //
-        // Obs.: O CPF do SÍNDICO/GESTOR aqui é apenas um guia visual
-        // (cada condomínio tem o seu). O usuário troca pelo seu CPF
-        // real de gestor e digita sua senha cadastrada.
-        // O CPF 922.633.991-00 é o SUPER ADMIN fixo da plataforma.
+        //  - Card SÍNDICO/GESTOR: limpa CPF e liga modo admin (usuário digita manualmente).
+        //  - Card SUPER ADMIN: NÃO preenche CPF automaticamente (LGPD/privacidade).
+        //    Liga modo admin, mostra placeholder específico e foca no input para
+        //    o usuário digitar o seu CPF manualmente.
         document.querySelectorAll('[data-papel]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 const papel = this.getAttribute('data-papel');
                 if (papel === 'super_admin') {
-                    // Super Admin — PREENCHE CPF COMPLETO automatico + liga modo admin.
-                    cpf.value = mascararCpf('92263399100');
-                    adminOn({marcarModoAdmin:true, focarSenha:true});
+                    // ⚠️ LGPD: NÃO preencher CPF do Super Admin automaticamente.
+                    // O usuário deve digitar manualmente.
+                    cpf.value = '';
+                    cpf.placeholder = 'Digite o CPF do Super Administrador';
+                    // Liga modo admin (campo senha aberto) e foca no input CPF.
+                    adminOn({marcarModoAdmin:true, focarSenha:false});
+                    // Feedback visual: borda azul animada por 3 segundos.
+                    cpf.style.outline = '2px solid #1E40AF';
+                    cpf.style.outlineOffset = '2px';
+                    setTimeout(function(){
+                        cpf.style.outline = '';
+                        cpf.style.outlineOffset = '';
+                        cpf.placeholder = '000.000.000-00';
+                    }, 3000);
+                    setTimeout(function(){
+                        try { cpf.focus({preventScroll:true}); } catch (e){}
+                    }, 60);
                 } else if (papel === 'admin_condominio') {
                     // Síndico / Gestor — liga modo admin, limpa CPF, foca input CPF,
                     // marca input com borda dourada animada, placeholder personalizado.

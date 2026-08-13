@@ -250,4 +250,124 @@ class SuperAdminController
         flashMessage('Esta ação deve ser feita pelo botão na tabela (método seguro).', 'warning');
         redirect(base_url('?route=superadmin/index'));
     }
+
+    // =========================================================================
+    // 🏢 CRUD NATIVO DE CONDOMÍNIOS DENTRO DO SUPER ADMIN (SaaS)
+    // ⚠️ Não depende mais do AdminController para o fluxo de gerenciamento
+    // de condomínios. SuperAdmin gerencia tudo dentro de rotas superadmin/*
+    // =========================================================================
+
+    /**
+     * Reutiliza a view de formulário de condomínio (Admin/condominio_form)
+     * mas aponta a action para as rotas nativas do Super Admin.
+     */
+    private function renderCondominioForm(?array $condominio, string $actionUrl, string $voltarUrl)
+    {
+        $flash = flashMessage();
+        extract([
+            'condominio' => $condominio,
+            'form_action' => $actionUrl,
+            'voltar_url' => $voltarUrl,
+            'flash' => $flash,
+        ], EXTR_SKIP);
+        require __DIR__ . '/../Views/Layouts/header_admin.php';
+        require __DIR__ . '/../Views/Admin/condominio_form.php';
+        require __DIR__ . '/../Views/Layouts/footer_admin.php';
+    }
+
+    private function payloadCondominioSeguro(array $src): array
+    {
+        // Mass assignment bloqueado: só colunas permitidas.
+        // O Model CondominioModel já faz a limpeza/validação final (CNPJ 14 dígitos, CEP 8).
+        return [
+            'nome'     => trim((string)($src['nome'] ?? '')),
+            'cnpj'     => $src['cnpj']     ?? null,
+            'endereco' => $src['endereco'] ?? null,
+            'cidade'   => $src['cidade']   ?? null,
+            'estado'   => $src['estado']   ?? null,
+            'cep'      => $src['cep']      ?? null,
+            'email'    => $src['email']    ?? null,
+            'telefone' => $src['telefone'] ?? null,
+            'ativo'    => isset($src['ativo']) ? (int)$src['ativo'] : 1,
+        ];
+    }
+
+    public function condominio_novo()
+    {
+        $fallback = base_url('?route=superadmin/index');
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            csrf_token_verify(true, $fallback);
+            try {
+                $payload = $this->payloadCondominioSeguro($_POST);
+                if (strlen($payload['nome']) < 3) {
+                    flashMessage('Nome do condomínio inválido (mínimo 3 letras).', 'error');
+                    redirect(base_url('?route=superadmin/condominio_novo'));
+                }
+                $this->condominioModel->create($payload);
+                flashMessage('✅ Condomínio cadastrado com sucesso!', 'success');
+                redirect($fallback);
+            } catch (Throwable $e) {
+                $ticket = security_log_exception($e, 'SuperAdmin->condominio_novo');
+                flashMessage(security_mensagem_amigavel($ticket), 'error');
+                redirect(base_url('?route=superadmin/condominio_novo'));
+            }
+        }
+        $this->renderCondominioForm(null, base_url('?route=superadmin/condominio_novo'), $fallback);
+    }
+
+    public function condominio_editar($id)
+    {
+        $fallback = base_url('?route=superadmin/index');
+        $condominio = $this->condominioModel->getById((int)$id);
+        if (!$condominio) {
+            flashMessage('Condomínio não encontrado.', 'error');
+            redirect($fallback);
+        }
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            csrf_token_verify(true, $fallback);
+            try {
+                $payload = $this->payloadCondominioSeguro($_POST);
+                if (strlen($payload['nome']) < 3) {
+                    flashMessage('Nome do condomínio inválido (mínimo 3 letras).', 'error');
+                    redirect(base_url('?route=superadmin/condominio_editar/' . (int)$id));
+                }
+                $this->condominioModel->update($condominio['id'], $payload);
+                flashMessage('✅ Condomínio atualizado com sucesso!', 'success');
+                redirect($fallback);
+            } catch (Throwable $e) {
+                $ticket = security_log_exception($e, 'SuperAdmin->condominio_editar id=' . (int)$id);
+                flashMessage(security_mensagem_amigavel($ticket), 'error');
+                redirect(base_url('?route=superadmin/condominio_editar/' . (int)$id));
+            }
+        }
+        $this->renderCondominioForm(
+            $condominio,
+            base_url('?route=superadmin/condominio_editar/' . (int)$id),
+            $fallback
+        );
+    }
+
+    public function condominio_excluir_post()
+    {
+        $fallback = base_url('?route=superadmin/index');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirect($fallback);
+        csrf_token_verify(true, $fallback);
+        $id = (int)($_POST['condominio_id'] ?? 0);
+        $c = $this->condominioModel->getById($id);
+        if (!$c) {
+            flashMessage('Condomínio não encontrado.', 'error');
+            redirect($fallback);
+        }
+        try {
+            $this->condominioModel->delete($id);
+            flashMessage('Condomínio «' . sanitize($c['nome']) . '» foi removido.', 'success');
+        } catch (Throwable $e) {
+            $ticket = security_log_exception($e, 'SuperAdmin->condominio_excluir id=' . $id);
+            $msg = stripos($e->getMessage(), 'Integrity') !== false || stripos($e->getMessage(), 'foreign') !== false
+                ? 'Não foi possível remover: este condomínio tem unidades, usuários ou assembleias vinculadas (remova estes primeiro).'
+                : security_mensagem_amigavel($ticket);
+            flashMessage($msg, 'error');
+        }
+        redirect($fallback);
+    }
 }

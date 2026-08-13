@@ -8,8 +8,7 @@
             <p class="page-subtitle">Visão geral de todos os condomínios da plataforma • <code>Perfil: super_admin</code></p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <a href="<?= base_url('?route=admin/condominio_novo') ?>" class="btn btn-ci btn-primary">＋ Cadastrar Novo Condomínio</a>
-            <a href="<?= base_url('?route=admin/condominios') ?>" class="btn-ci btn-secondary">Gerenciar Condomínios</a>
+            <a href="<?= base_url('?route=superadmin/condominio_novo') ?>" class="btn btn-ci btn-primary">＋ Cadastrar Novo Condomínio</a>
             <a href="<?= base_url('?route=admin/index') ?>" class="btn-ci btn-outline">Painel Admin Geral</a>
         </div>
     </div>
@@ -266,7 +265,7 @@
                         <?php endif; ?>
                     </td>
                     <td style="white-space:nowrap;text-align:right;">
-                        <a href="<?= base_url('?route=admin/condominio_editar/' . (int)$c['id']) ?>"
+                        <a href="<?= base_url('?route=superadmin/condominio_editar/' . (int)$c['id']) ?>"
                            class="btn-ci btn-sm btn-outline" style="padding:8px 12px;">Editar</a>
                         <form method="POST" action="<?= base_url('?route=superadmin/condominio_toggle_post') ?>"
                               class="inline-form">
@@ -276,6 +275,17 @@
                                     class="btn-ci btn-sm <?= ((int)($c['ativo'] ?? 1) === 1) ? 'btn-warning' : 'btn-success' ?>"
                                     style="padding:8px 12px;margin-left:6px;">
                                 <?= ((int)($c['ativo'] ?? 1) === 1) ? '⛔ Suspender' : '✅ Reativar' ?>
+                            </button>
+                        </form>
+                        <form method="POST" action="<?= base_url('?route=superadmin/condominio_excluir_post') ?>"
+                              class="inline-form"
+                              onsubmit="return confirm('Confirma EXCLUIR o condomínio «<?= htmlspecialchars($c['nome']) ?>»?\n\nAviso: esta ação quebra vínculos. Se houver unidades, usuários ou assembleias vinculadas, a exclusão será bloqueada automaticamente.');">
+                            <input type="hidden" name="condominio_id" value="<?= (int)$c['id'] ?>">
+                            <?= csrf_field() ?>
+                            <button type="submit"
+                                    class="btn-ci btn-sm btn-danger"
+                                    style="padding:8px 12px;margin-left:6px;">
+                                🗑️ Excluir
                             </button>
                         </form>
                     </td>

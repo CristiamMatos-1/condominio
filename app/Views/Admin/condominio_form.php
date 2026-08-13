@@ -1,10 +1,12 @@
 <div class="page-header">
     <h1 class="page-title"><?= $condominio ? 'Editar Condomínio' : 'Novo Condomínio' ?></h1>
-    <a href="<?= base_url('?route=admin/condominios') ?>" class="btn btn-secondary">↩️ Voltar</a>
+    <a href="<?= !empty($voltar_url) ? sanitize($voltar_url) : base_url('?route=admin/condominios') ?>"
+       class="btn btn-secondary">↩️ Voltar</a>
 </div>
 
 <div class="card">
-    <form method="POST" class="form-grid">
+    <form method="POST" class="form-grid"
+          action="<?= !empty($form_action) ? sanitize($form_action) : '' ?>">
         <div class="form-group col-full">
             <label class="form-label">Nome do Condomínio *</label>
             <input type="text" name="nome" class="form-input" required
@@ -36,6 +38,16 @@
                    value="<?= sanitize($condominio['estado'] ?? '') ?>" placeholder="SP">
         </div>
         <div class="form-group">
+            <label class="form-label">E-mail de contato</label>
+            <input type="email" name="email" class="form-input"
+                   value="<?= sanitize($condominio['email'] ?? '') ?>" placeholder="sindico@meucondominio.com.br">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Telefone</label>
+            <input type="text" name="telefone" class="form-input" id="tel-cond-input"
+                   value="<?= sanitize($condominio['telefone'] ?? '') ?>" placeholder="(00) 00000-0000">
+        </div>
+        <div class="form-group">
             <label class="form-label">Status</label>
             <select name="ativo" class="form-input">
                 <option value="1" <?= (!$condominio || !empty($condominio['ativo'])) ? 'selected' : '' ?>>Ativo</option>
@@ -45,6 +57,7 @@
         <div class="form-group col-full">
             <button type="submit" class="btn btn-primary btn-lg">💾 Salvar Condomínio</button>
         </div>
+        <?= csrf_field() ?>
     </form>
 </div>
 
@@ -54,5 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (cnpj) aplicarMascaraCnpj(cnpj);
     const cep = document.getElementById('cep-input');
     if (cep) aplicarMascaraCep(cep);
+    const tel = document.getElementById('tel-cond-input');
+    if (tel) aplicarMascaraTelefone(tel);
 });
 </script>
