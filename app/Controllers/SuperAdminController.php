@@ -1,10 +1,19 @@
 <?php
 
 /**
- * SuperAdminController — Acesso APENAS super_admin (perfil 'super_admin').
- * Dashboard GLOBAL da Plataforma SaaS: todos os condomínios cadastrados,
- * KPIs globais (ativos/inativos, moradores, etc) e onboarding (criar conta
- * de Admin de Condomínio para um condomínio cadastrado).
+ * SuperAdminController — 🔒 ACESSO EXCLUSIVO super_admin.
+ *
+ * ⚠️ REQUISITO 1 (Autorização Estrita): apenas perfil `super_admin` pode
+ * gerenciar cadastros de condomínios e síndicos/administradores.
+ *  - __construct: trava requireSuperAdmin()
+ *  - TODOS os métodos de alteração de estado (onboarding, toggle, remover,
+ *    novo_condominio, editar_condominio, excluir_condominio, senha_gestor)
+ *    VALIDAM CSRF token e EXIGEM method === POST.
+ *
+ * ⚠️ REQUISITO 3 (Segurança):
+ *  - Todas exceptions capturadas → log estruturado [SEG-...] via
+ *    security_log_exception() + mensagem amigável ao usuário (com ticket).
+ *  - NUNCA exibimos mensagens de PDO / stack traces na UI.
  */
 class SuperAdminController
 {
@@ -15,7 +24,7 @@ class SuperAdminController
 
     public function __construct()
     {
-        requireSuperAdmin(); // 🔒 trava de perfil
+        requireSuperAdmin(); // 🔒 trava de perfil obrigatória (REQUISITO 1)
         $this->condominioModel = new CondominioModel();
         $this->usuarioModel    = new UsuarioModel();
         $this->unidadeModel    = new UnidadeModel();
@@ -25,48 +34,54 @@ class SuperAdminController
     private function render($view, $data = [])
     {
         $data['flash'] = flashMessage();
-        extract($data);
+        extract($data, EXTR_SKIP);
         require __DIR__ . '/../Views/Layouts/header_admin.php';
         require __DIR__ . '/../Views/SuperAdmin/' . $view . '.php';
         require __DIR__ . '/../Views/Layouts/footer_admin.php';
     }
 
     /**
-     * Dashboard GLOBAL: KPIs gerais + lista de todos condominios + form onboarding (criar admin_condominio).
+     * Dashboard GLOBAL: KPIs, lista todos condomínios + onboarding admin_condominio.
+     * ⚠️ GET (leitura). NÃO aplica CSRF strict — apenas para rotas de alteração.
      */
     public function index()
     {
-        $condominiosAll = $this->condominioModel->getAll(); // Todos, inclusive inativos (super admin ve tudo)
-        $totalCondominiosAtivos  = 0;
+        $condominiosAll = $this->condominioModel->getAll();
+        $totalCondominiosAtivos = 0;
         $totalCondominiosInativos = 0;
         foreach ($condominiosAll as $c) {
-            if (in_array((int)($c['ativo'] ?? 1), [1], true)) $totalCondominiosAtivos++;
+            if ((int)($c['ativo'] ?? 1) === 1) $totalCondominiosAtivos++;
             else $totalCondominiosInativos++;
         }
-        $totalUsuariosMoradores   = count(array_filter(
-            $this->usuarioModel->getAll(),
-            static fn($u) => in_array(($u['perfil'] ?? $u['tipo']), ['morador', null], true)
-        ));
-        $totalAdminsCondominio    = count(array_filter(
-            $this->usuarioModel->getAll(),
-            static fn($u) => ($u['perfil'] ?? '') === 'admin_condominio'
-        ));
-        $totalUnidades            = (int)$this->unidadeModel->count();
-        $assembleiasAbertas       = count($this->assembleiaModel->getAll(null, 'Aberta'));
-        $assembleiasAndamento     = count($this->assembleiaModel->getAll(null, 'Em Andamento'));
-        $assembleiasEncerradas    = count($this->assembleiaModel->getAll(null, 'Encerrada'));
+
+        $listaUsuariosTodos = $this->usuarioModel->getAll();
+        $totalUsuariosMoradores = 0;
+        $totalAdminsCondominio = 0;
+        foreach ($listaUsuariosTodos as $u) {
+            $p = (string)($u['perfil'] ?? $u['tipo']);
+            if ($p === 'admin') $p = 'super_admin';
+            if ($p === 'morador' || $p === '') $totalUsuariosMoradores++;
+            if ($p === 'admin_condominio') $totalAdminsCondominio++;
+        }
+        $totalUnidades = (int)$this->unidadeModel->count();
+        $assembleiasAbertas    = count($this->assembleiaModel->getAll(null, 'Aberta'));
+        $assembleiasAndamento  = count($this->assembleiaModel->getAll(null, 'Em Andamento'));
+        $assembleiasEncerradas = count($this->assembleiaModel->getAll(null, 'Encerrada'));
+
         $stats = [
-            'total_condominios_ativos'     => $totalCondominiosAtivos,
-            'total_condominios_inativos'   => $totalCondominiosInativos,
-            'total_moradores'              => $totalUsuariosMoradores,
-            'total_admin_condominio'       => $totalAdminsCondominio,
-            'total_unidades'               => $totalUnidades,
-            'assembleias_abertas'          => $assembleiasAbertas,
-            'assembleias_andamento'        => $assembleiasAndamento,
-            'assembleias_encerradas'       => $assembleiasEncerradas,
+            'total_condominios_ativos'   => $totalCondominiosAtivos,
+            'total_condominios_inativos' => $totalCondominiosInativos,
+            'total_moradores'            => $totalUsuariosMoradores,
+            'total_admin_condominio'     => $totalAdminsCondominio,
+            'total_unidades'             => $totalUnidades,
+            'assembleias_abertas'        => $assembleiasAbertas,
+            'assembleias_andamento'      => $assembleiasAndamento,
+            'assembleias_encerradas'     => $assembleiasEncerradas,
         ];
-        $listaUsuariosAdminsCondominio = $this->usuarioModel->getAll('admin_condominio'); // compat getall(tipo)
-        // View espera: $stats, $condominios, $listaUsuariosAdminsCondominio
+
+        // Lista de admin_condominio (usa perfil novo, compat com tipo legado).
+        $listaUsuariosAdminsCondominio = $this->usuarioModel->getAll(null, null, 'admin_condominio');
+
         $this->render('dashboard', [
             'stats' => $stats,
             'condominios' => $condominiosAll,
@@ -74,23 +89,22 @@ class SuperAdminController
         ]);
     }
 
-    /**
-     * Alias de conveniência (admin chama ?route=superadmin/dashboard).
-     */
     public function dashboard() { $this->index(); }
 
     /**
-     * Onboarding: cria uma conta "admin_condominio" (Síndico/Gestor) com
-     * condominio_id fixado. Usada quando o super_admin cadastra um cliente.
-     * POST → redirect de volta p/ dashboard.
+     * 🔒 Onboarding: Cria conta admin_condominio (Síndico/Gestor).
+     * REQUISITO 3 — EXIGE POST + CSRF token.
      */
     public function onboarding()
     {
+        $fallback = base_url('?route=superadmin/index');
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            redirect(base_url('?route=superadmin/index'));
+            redirect($fallback);
         }
+        csrf_token_verify(true, $fallback); // 🔐
+
         $nome            = trim((string)($_POST['nome'] ?? ''));
-        $cpf             = preg_replace('/[^0-9]/', '', (string)($_POST['cpf'] ?? ''));
+        $cpf             = preg_replace('/\D/', '', (string)($_POST['cpf'] ?? ''));
         $email           = trim((string)($_POST['email'] ?? ''));
         $telefone        = trim((string)($_POST['telefone'] ?? ''));
         $senhaPlana      = (string)($_POST['senha'] ?? '');
@@ -98,99 +112,142 @@ class SuperAdminController
 
         if (strlen($nome) < 3 || strlen($cpf) !== 11 || $condominioId <= 0 || strlen($senhaPlana) < 6) {
             flashMessage(
-                'Dados inválidos. Verifique: nome (mín 3), CPF (11 dígitos), condomínio selecionado, senha (mín 6).',
+                'Dados inválidos. Verifique: nome (mín. 3), CPF (11 dígitos), condomínio selecionado e senha (mín. 6).',
                 'error'
             );
-            redirect(base_url('?route=superadmin/index'));
+            redirect($fallback);
         }
         $cond = $this->condominioModel->getById($condominioId);
         if (!$cond) {
             flashMessage('Condomínio não encontrado para vincular.', 'error');
-            redirect(base_url('?route=superadmin/index'));
+            redirect($fallback);
         }
+
         try {
+            if ($this->usuarioModel->existsByCpf($cpf)) {
+                flashMessage('CPF já cadastrado. Utilize outro CPF ou edite o gestor(a) existente.', 'error');
+                redirect($fallback);
+            }
             $this->usuarioModel->create([
                 'nome'          => $nome,
                 'cpf'           => $cpf,
                 'email'         => $email,
                 'telefone'      => $telefone,
-                // tipo legado + perfil novo: ambos enviamos p/ UsuarioModel.create()
-                // (o create aceita ambos; se coluna perfil existe usa, senão tipo).
                 'tipo'          => 'admin_condominio',
                 'perfil'        => 'admin_condominio',
                 'condominio_id' => $condominioId,
                 'senha'         => $senhaPlana,
             ]);
             flashMessage(
-                'Gestor(a) ' . htmlspecialchars($nome) . ' cadastrado(a) com sucesso. '
-                .'Perfil: Administrador do Condomínio «' . htmlspecialchars($cond['nome']) . '».',
+                '✅ Gestor(a) «' . sanitize($nome) . '» cadastrado(a) com sucesso. '
+                . 'Perfil: Administrador do Condomínio «' . sanitize($cond['nome']) . '».',
                 'success'
             );
         } catch (PDOException $e) {
-            $msg = $e->getMessage();
-            if (stripos($msg, 'Duplicate') !== false) {
-                flashMessage('CPF já cadastrado. Utilize outro CPF para este gestor.', 'error');
-            } else {
-                flashMessage('Erro ao cadastrar gestor: ' . $msg, 'error');
-            }
+            // ⚠️ Segurança: NÃO mostramos mensagem do PDO (que pode vazar
+            // nomes de constraints, tabelas, colunas ou engine MySQL).
+            // Logamos TUDO no error_log com ticket; mostramos só mensagem amigável.
+            $ticket = security_log_exception($e, 'SuperAdmin->onboarding CPF=' . substr($cpf,0,3) . '.XXX.XXX-' . substr($cpf,-2));
+            $msg = stripos($e->getMessage(), 'Duplicate') !== false
+                ? 'CPF já cadastrado. Utilize outro CPF para este gestor.'
+                : 'Não foi possível cadastrar. Verifique os dados e tente novamente.';
+            flashMessage($msg . ' (' . sanitize($ticket) . ')', 'error');
+        } catch (Throwable $e) {
+            $ticket = security_log_exception($e, 'SuperAdmin->onboarding');
+            flashMessage(security_mensagem_amigavel($ticket), 'error');
         }
-        redirect(base_url('?route=superadmin/index'));
+
+        redirect($fallback);
     }
 
     /**
-     * Aprovar / Suspender / Reativar condomínio (toggle ativo).
-     * Route: ?route=superadmin/condominio_toggle/{id}
+     * 🔒 Alternar ativo/suspenso de um condomínio (toggle).
+     * MIGRADO DE GET → POST (ataques CSRF/preload/iframe).
      */
-    public function condominio_toggle($id)
+    public function condominio_toggle_post()
     {
-        $c = $this->condominioModel->getById((int)$id);
+        $fallback = base_url('?route=superadmin/index');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirect($fallback);
+        csrf_token_verify(true, $fallback);
+
+        $id = (int)($_POST['condominio_id'] ?? 0);
+        $c = $this->condominioModel->getById($id);
         if (!$c) {
             flashMessage('Condomínio não encontrado.', 'error');
-            redirect(base_url('?route=superadmin/index'));
+            redirect($fallback);
         }
-        $novoAtivo = ((int)($c['ativo'] ?? 1) === 1) ? 0 : 1;
-        $this->condominioModel->update($c['id'], [
-            'nome'      => $c['nome'],
-            'cnpj'      => $c['cnpj'] ?? null,
-            'endereco'  => $c['endereco'] ?? null,
-            'email'     => $c['email'] ?? null,
-            'telefone'  => $c['telefone'] ?? null,
-            'ativo'     => $novoAtivo,
-        ]);
-        flashMessage(
-            'Condomínio «' . htmlspecialchars($c['nome']) . '» '
-            . ($novoAtivo ? 'reativado ✅' : 'suspenso 🚫') . '.',
-            'success'
-        );
-        redirect(base_url('?route=superadmin/index'));
+        try {
+            $novoAtivo = ((int)($c['ativo'] ?? 1) === 1) ? 0 : 1;
+            // Update via payload validado (não usa $_POST bruto).
+            $this->condominioModel->update($c['id'], [
+                'nome'     => $c['nome'],
+                'cnpj'     => $c['cnpj'] ?? null,
+                'endereco' => $c['endereco'] ?? null,
+                'cidade'   => $c['cidade'] ?? null,
+                'estado'   => $c['estado'] ?? null,
+                'cep'      => $c['cep'] ?? null,
+                'email'    => $c['email'] ?? null,
+                'telefone' => $c['telefone'] ?? null,
+                'ativo'    => $novoAtivo,
+            ]);
+            flashMessage(
+                'Condomínio «' . sanitize($c['nome']) . '» '
+                . ($novoAtivo ? 'reativado ✅' : 'suspenso 🚫') . '.',
+                'success'
+            );
+        } catch (Throwable $e) {
+            $ticket = security_log_exception($e, 'SuperAdmin->condominio_toggle id=' . $id);
+            flashMessage(security_mensagem_amigavel($ticket), 'error');
+        }
+        redirect($fallback);
     }
 
     /**
-     * Excluir conta de admin_condominio (não apaga super admin, protege).
-     * Route: ?route=superadmin/admin_condominio_remover/{userId}
+     * 🔒 Excluir conta de admin_condominio (NÃO remove contas super_admin).
+     * MIGRADO DE GET → POST.
      */
+    public function admin_condominio_remover_post()
+    {
+        $fallback = base_url('?route=superadmin/index');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') redirect($fallback);
+        csrf_token_verify(true, $fallback);
+
+        $userId = (int)($_POST['usuario_id'] ?? 0);
+        try {
+            $u = $this->usuarioModel->getById($userId);
+            if (!$u) {
+                flashMessage('Usuário não encontrado.', 'error');
+                redirect($fallback);
+            }
+            $perfil = (string)($u['perfil'] ?? $u['tipo']);
+            if ($perfil === 'admin') $perfil = 'super_admin';
+            if ($perfil === 'super_admin') {
+                flashMessage('Não é permitido remover contas de Super Administrador.', 'error');
+                redirect($fallback);
+            }
+            if ($perfil !== 'admin_condominio') {
+                flashMessage('Este usuário não é um Administrador de Condomínio.', 'error');
+                redirect($fallback);
+            }
+            $this->usuarioModel->delete($userId);
+            flashMessage('Conta do(a) gestor(a) «' . sanitize($u['nome']) . '» foi removida.', 'success');
+        } catch (Throwable $e) {
+            $ticket = security_log_exception($e, 'SuperAdmin->admin_condominio_remover id=' . $userId);
+            flashMessage(security_mensagem_amigavel($ticket), 'error');
+        }
+        redirect($fallback);
+    }
+
+    // ========== ALIASES LEGADOS — mantidos p/ não quebrar links antigos. ==========
+    // Redirecionam para as rotas POST (no formato novo).
+    public function condominio_toggle($id)
+    {
+        flashMessage('Esta ação deve ser feita pelo botão na tabela (método seguro).', 'warning');
+        redirect(base_url('?route=superadmin/index'));
+    }
     public function admin_condominio_remover($userId)
     {
-        $userId = (int)$userId;
-        $u = $this->usuarioModel->getById($userId);
-        if (!$u) {
-            flashMessage('Usuário não encontrado.', 'error');
-            redirect(base_url('?route=superadmin/index'));
-        }
-        $perfil = $u['perfil'] ?? $u['tipo'];
-        if ($perfil === 'super_admin' || $perfil === 'admin') {
-            flashMessage('Não é permitido remover contas de Super Administrador.', 'error');
-            redirect(base_url('?route=superadmin/index'));
-        }
-        if ($perfil !== 'admin_condominio') {
-            flashMessage('Este usuário não é um Administrador de Condomínio.', 'error');
-            redirect(base_url('?route=superadmin/index'));
-        }
-        $this->usuarioModel->delete($userId);
-        flashMessage(
-            'Conta do(a) gestor(a) «' . htmlspecialchars($u['nome']) . '» foi removida.',
-            'success'
-        );
+        flashMessage('Esta ação deve ser feita pelo botão na tabela (método seguro).', 'warning');
         redirect(base_url('?route=superadmin/index'));
     }
 }

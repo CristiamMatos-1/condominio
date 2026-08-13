@@ -11,17 +11,49 @@
                    value="<?= sanitize($usuario['nome'] ?? '') ?>" placeholder="Nome completo do condômino">
         </div>
         <div class="form-group">
-            <label class="form-label">CPF *</label>
-            <input type="text" name="cpf" class="form-input" id="cpf-input" required
-                   value="<?= sanitize($usuario['cpf'] ?? '') ?>" placeholder="000.000.000-00">
+            <label class="form-label">
+                CPF *
+                <?php if ($usuario): ?>
+                    <small class="hint" style="font-weight:400;">
+                        (Por segurança e privacidade LGPD, deixamos em branco. Digite apenas se precisar alterar.)
+                    </small>
+                <?php endif; ?>
+            </label>
+            <input type="text" name="cpf" class="form-input" id="cpf-input"
+                   <?php if (!$usuario): ?>required<?php endif; ?>
+                   value="" placeholder="000.000.000-00">
         </div>
-        <div class="form-group">
-            <label class="form-label">Tipo de Usuário</label>
-            <select name="tipo" class="form-input">
-                <option value="morador" <?= (!$usuario || $usuario['tipo'] === 'morador') ? 'selected' : '' ?>>Morador</option>
-                <option value="admin" <?= ($usuario && $usuario['tipo'] === 'admin') ? 'selected' : '' ?>>Administrador</option>
-            </select>
-        </div>
+        <?php if (!empty($condominios)): ?>
+            <div class="form-group">
+                <label class="form-label">Perfil *</label>
+                <select name="perfil" class="form-input" required>
+                    <option value="morador"
+                        <?= (!$usuario || ($usuario['perfil'] ?? 'morador') === 'morador') ? 'selected' : '' ?>>
+                        Morador
+                    </option>
+                    <option value="admin_condominio"
+                        <?= ($usuario && ($usuario['perfil'] ?? '') === 'admin_condominio') ? 'selected' : '' ?>>
+                        Administrador do Condomínio (Síndico/Gestor)
+                    </option>
+                    <option value="super_admin"
+                        <?= ($usuario && ($usuario['perfil'] ?? '') === 'super_admin') ? 'selected' : '' ?>>
+                        Super Administrador
+                    </option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Condomínio Vinculado</label>
+                <select name="condominio_id" class="form-input">
+                    <option value="">-- Sem vínculo (apenas para Super Admin) --</option>
+                    <?php foreach ($condominios as $c): ?>
+                        <option value="<?= (int)$c['id'] ?>"
+                            <?= ($usuario && (int)($usuario['condominio_id'] ?? 0) === (int)$c['id']) ? 'selected' : '' ?>>
+                            <?= sanitize($c['nome']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
         <div class="form-group">
             <label class="form-label">E-mail</label>
             <input type="email" name="email" class="form-input"
@@ -33,9 +65,10 @@
                    value="<?= sanitize($usuario['telefone'] ?? '') ?>" placeholder="(00) 00000-0000">
         </div>
         <div class="form-group">
-            <label class="form-label">Senha <?= $usuario ? '(deixe vazio para manter)' : '' ?></label>
+            <label class="form-label">Senha <?= $usuario ? '(deixe vazio para manter)' : '(obrigatório para admin)' ?></label>
             <input type="password" name="senha" class="form-input"
-                   placeholder="<?= $usuario ? 'Nova senha' : 'Somente para admin' ?>">
+                   placeholder="<?= $usuario ? 'Nova senha (opcional)' : 'Senha de acesso' ?>"
+                   autocomplete="new-password">
         </div>
         <div class="form-group">
             <label class="form-label">Status</label>
@@ -47,6 +80,7 @@
         <div class="form-group col-full">
             <button type="submit" class="btn btn-primary btn-lg">💾 Salvar Usuário</button>
         </div>
+        <?= csrf_field() ?>
     </form>
 </div>
 

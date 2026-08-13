@@ -129,6 +129,88 @@ if (!function_exists('requireAdmin')) {
     }
 }
 
+// ======================================================================
+// 🔐 CAMADA SEGURANÇA — CSRF + Logger estruturado (ISO 27001 / LGPD)
+// DUPLICADO no public/index.php: garante que mesmo acessando por
+// /public/index.php diretamente (sem passar pelo bootstrap raiz),
+// os helpers de segurança ESTARAO LÁ. 100% fallbacks.
+// ======================================================================
+if (!function_exists('security_log_exception')) {
+    function security_log_exception(Throwable $e, string $contexto = ''): string {
+        try { $idCurto = substr(bin2hex(random_bytes(6)), 0, 12); }
+        catch (Throwable $t) { $idCurto = substr(uniqid('seg', true), 0, 12); }
+        $log = json_encode([
+            'evento'     => 'exception_segurada',
+            'ticket'     => $idCurto,
+            'contexto'   => $contexto,
+            'classe'     => get_class($e),
+            'mensagem'   => $e->getMessage(),
+            'arquivo'    => $e->getFile(),
+            'linha'      => $e->getLine(),
+            'uri'        => $_SERVER['REQUEST_URI'] ?? '',
+            'usuario_id' => $_SESSION['usuario_id'] ?? null,
+            'ip'         => $_SERVER['REMOTE_ADDR'] ?? '',
+            'timestamp'  => date('c'),
+            'trace'      => $e->getTraceAsString(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        @error_log('[SEG-' . $idCurto . '] ' . ($log ?: 'json_encode falhou'));
+        return $idCurto;
+    }
+}
+if (!function_exists('security_mensagem_amigavel')) {
+    function security_mensagem_amigavel(string $ticket = ''): string {
+        $sufixo = $ticket !== '' ? ' Código de atendimento: <b>' . sanitize($ticket) . '</b>.' : '';
+        return 'Ocorreu um erro ao processar sua solicitação. Entre em contato com o suporte.' . $sufixo;
+    }
+}
+if (!function_exists('csrf_token_generate')) {
+    function csrf_token_generate(): string {
+        if (session_status() !== PHP_SESSION_ACTIVE) return '';
+        $chave  = 'csrf_token_principal';
+        $expira = 'csrf_token_principal_expira';
+        $agora  = time();
+        if (empty($_SESSION[$chave]) || empty($_SESSION[$expira]) || (int)$_SESSION[$expira] < $agora) {
+            try { $token = bin2hex(random_bytes(32)); }
+            catch (Throwable $t) { $token = hash('sha256', uniqid((string)mt_rand(), true)); }
+            $_SESSION[$chave]  = $token;
+            $_SESSION[$expira] = $agora + (60 * 60 * 12);
+        }
+        return (string)$_SESSION[$chave];
+    }
+}
+if (!function_exists('csrf_token')) {
+    function csrf_token(): string { return csrf_token_generate(); }
+}
+if (!function_exists('csrf_field')) {
+    function csrf_field(): string {
+        return '<input type="hidden" name="csrf_token" value="' . sanitize(csrf_token_generate()) . '">';
+    }
+}
+if (!function_exists('csrf_token_verify')) {
+    function csrf_token_verify(bool $strict = true, string $urlFallback = ''): void {
+        $metodo = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $exigir = $strict || in_array($metodo, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+        if (!$exigir) return;
+
+        $enviado = (string)($_POST['csrf_token'] ?? '');
+        $valido  = hash_equals(csrf_token_generate(), $enviado);
+        if (!$valido) {
+            @error_log('[SEG-CSRF] CSRF invalido ou ausente. IP=' . ($_SERVER['REMOTE_ADDR'] ?? '')
+                . ' URI=' . ($_SERVER['REQUEST_URI'] ?? '')
+                . ' Usuario_id=' . ($_SESSION['usuario_id'] ?? 'deslogado'));
+            if (function_exists('flashMessage')) {
+                flashMessage('Sua sessão expirou ou a requisição não pôde ser validada. Por favor, recarregue a página e tente novamente.', 'error');
+            }
+            $fallback = $urlFallback !== ''
+                ? $urlFallback
+                : ($_SERVER['HTTP_REFERER'] ?? (function_exists('base_url') ? base_url('?route=auth/login') : '?route=auth/login'));
+            if (!headers_sent()) header('Location: ' . $fallback, true, 302);
+            else echo '<script>window.location.href="', sanitize($fallback), '";</script>';
+            exit;
+        }
+    }
+}
+
 $route = $_GET['route'] ?? 'auth/login';
 $route = trim($route, '/');
 

@@ -249,6 +249,114 @@ try {
         }
     }
 
+    // ======================================================================
+    // 🔐 CAMADA SEGURANÇA — CSRF + Logger estruturado (ISO 27001 / LGPD)
+    // Implementado no front controller: DISPONIVEL MESMO SEM config.php atualizado
+    // ======================================================================
+    if (!function_exists('security_log_exception')) {
+        /**
+         * Logger estruturado: escreve no error_log (apenas servidor vê).
+         * NUNCA exibe stack trace / mensagem raw ao usuário final (LGPD art. 42).
+         *
+         * @param Throwable $e       Exceção
+         * @param string    $contexto Texto curto descrevendo onde ocorreu (ex.: "SuperAdmin->onboarding")
+         * @return string UUID curto para repassar ao usuário (para suporte rastrear)
+         */
+        function security_log_exception(Throwable $e, string $contexto = ''): string {
+            $idCurto = substr(bin2hex(random_bytes(6)), 0, 12);
+            $log = json_encode([
+                'evento'     => 'exception_segurada',
+                'ticket'     => $idCurto,
+                'contexto'   => $contexto,
+                'classe'     => get_class($e),
+                'mensagem'   => $e->getMessage(),
+                'arquivo'    => $e->getFile(),
+                'linha'      => $e->getLine(),
+                'uri'        => $_SERVER['REQUEST_URI'] ?? '',
+                'usuario_id' => $_SESSION['usuario_id'] ?? null,
+                'ip'         => $_SERVER['REMOTE_ADDR'] ?? '',
+                'timestamp'  => date('c'),
+                'trace'      => $e->getTraceAsString(),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            error_log('[SEG-' . $idCurto . '] ' . $log);
+            return $idCurto;
+        }
+    }
+    if (!function_exists('security_mensagem_amigavel')) {
+        /**
+         * Mensagem que pode ser mostrada ao usuário final: nunca traz detalhes internos.
+         */
+        function security_mensagem_amigavel(string $ticket = ''): string {
+            $sufixo = $ticket !== '' ? ' Código de atendimento: <b>' . sanitize($ticket) . '</b>.' : '';
+            return 'Ocorreu um erro ao processar sua solicitação. Entre em contato com o suporte.' . $sufixo;
+        }
+    }
+    if (!function_exists('csrf_token_generate')) {
+        /**
+         * Gera token CSRF por sessão (reutilizável, duração da sessão).
+         * OWASP CSRF Prevention Cheat Sheet: Synchronizer Token Pattern (por sessão).
+         */
+        function csrf_token_generate(): string {
+            if (session_status() !== PHP_SESSION_ACTIVE) return '';
+            $chave = 'csrf_token_principal';
+            $expira = 'csrf_token_principal_expira';
+            $agora = time();
+            if (empty($_SESSION[$chave]) || empty($_SESSION[$expira]) || (int)$_SESSION[$expira] < $agora) {
+                $_SESSION[$chave]  = bin2hex(random_bytes(32));
+                $_SESSION[$expira] = $agora + (60 * 60 * 12); // 12h
+            }
+            return (string)$_SESSION[$chave];
+        }
+    }
+    if (!function_exists('csrf_token')) {
+        function csrf_token(): string { return csrf_token_generate(); }
+    }
+    if (!function_exists('csrf_field')) {
+        /**
+         * Retorna HTML <input hidden name="csrf_token" value="xxx">.
+         * Usar em TODOS os formulários com method POST.
+         */
+        function csrf_field(): string {
+            return '<input type="hidden" name="csrf_token" value="' . sanitize(csrf_token_generate()) . '">';
+        }
+    }
+    if (!function_exists('csrf_token_verify')) {
+        /**
+         * Valida token CSRF em requisições POST. Falha = redirect + flash erro.
+         *
+         * @param bool $strict Se true: SEMPRE exige token (use em cadastros, edição, exclusão, alteração de senha).
+         *                     Se false: só valida se o token foi enviado.
+         * @param string $urlFallback URL destino após erro (default volta para página anterior via HTTP_REFERER ou auth/login).
+         * @return void
+         */
+        function csrf_token_verify(bool $strict = true, string $urlFallback = ''): void {
+            $metodo = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+            // Para métodos de alteração: POST, PUT, PATCH, DELETE exigimos validação (strict padrão).
+            $exigir = $strict || in_array($metodo, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+            if (!$exigir) return;
+
+            $enviado = (string)($_POST['csrf_token'] ?? '');
+            $valido  = hash_equals(csrf_token_generate(), $enviado);
+            if (!$valido) {
+                error_log('[SEG-CSRF] CSRF invalido ou ausente. IP=' . ($_SERVER['REMOTE_ADDR'] ?? '')
+                    . ' URI=' . ($_SERVER['REQUEST_URI'] ?? '')
+                    . ' Usuario_id=' . ($_SESSION['usuario_id'] ?? 'deslogado'));
+                if (function_exists('flashMessage')) {
+                    flashMessage('Sua sessão expirou ou a requisição não pôde ser validada. Por favor, recarregue a página e tente novamente.', 'error');
+                }
+                $fallback = $urlFallback !== ''
+                    ? $urlFallback
+                    : ($_SERVER['HTTP_REFERER'] ?? (function_exists('base_url') ? base_url('?route=auth/login') : '?route=auth/login'));
+                if (!headers_sent()) {
+                    header('Location: ' . $fallback, true, 302);
+                } else {
+                    echo '<script>window.location.href="', sanitize($fallback), '";</script>';
+                }
+                exit;
+            }
+        }
+    }
+
     // Garante que $_GET['route'] existe
     if (empty($_GET['route']) || !is_string($_GET['route'])) {
         $rota = $requestUri;

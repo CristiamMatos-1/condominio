@@ -139,6 +139,7 @@
                         No primeiro login pode redefinir a senha.
                     </small>
                 </div>
+                <?= csrf_field() ?>
             </form>
         </div>
     </div>
@@ -160,16 +161,26 @@
                         <thead>
                             <tr>
                                 <th>Nome</th>
-                                <th>CPF</th>
+                                <th>Contato</th>
                                 <th>Condomínio Vinc.</th>
-                                <th>Ações</th>
+                                <th style="text-align:right;">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php foreach ($listaUsuariosAdminsCondominio as $u): ?>
                             <tr>
                                 <td><?= htmlspecialchars($u['nome']) ?></td>
-                                <td><code><?= htmlspecialchars($u['cpf']) ?></code></td>
+                                <td>
+                                    <?php if (!empty($u['email'])): ?>
+                                        <div><small class="hint"><?= sanitize($u['email']) ?></small></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($u['telefone'])): ?>
+                                        <small class="hint"><?= sanitize($u['telefone']) ?></small>
+                                    <?php endif; ?>
+                                    <?php if (empty($u['email']) && empty($u['telefone'])): ?>
+                                        <small class="hint">Sem contato cadastrado</small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if (!empty($u['condominio_id'])): ?>
                                         <?php
@@ -189,12 +200,17 @@
                                         <span class="badge badge-warning">Sem condomínio</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td style="white-space:nowrap;text-align:right;">
                                     <a href="<?= base_url('?route=admin/usuario_editar/' . (int)$u['id']) ?>"
                                        class="btn-ci btn-sm btn-outline" style="padding:8px 12px;">Editar</a>
-                                    <a  href="<?= base_url('?route=superadmin/admin_condominio_remover/' . (int)$u['id']) ?>"
-                                        onclick="return confirm('Confirma REMOVER a conta de <?= htmlspecialchars($u['nome']) ?>?\n\n(Essa ação apaga o usuário e quebra o vínculo com condominio_id, NÃO apaga assembleias/moradores do condomínio.)');"
-                                        class="btn-ci btn-sm btn-danger" style="padding:8px 12px;margin-left:6px;">Excluir</a>
+                                    <form method="POST" action="<?= base_url('?route=superadmin/admin_condominio_remover_post') ?>"
+                                          class="inline-form"
+                                          onsubmit="return confirm('Confirma REMOVER a conta de <?= htmlspecialchars($u['nome']) ?>?\n\n(Essa ação apaga o usuário e quebra o vínculo com condominio_id, NÃO apaga assembleias/moradores do condomínio.)');">
+                                        <input type="hidden" name="usuario_id" value="<?= (int)$u['id'] ?>">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="btn-ci btn-sm btn-danger"
+                                                style="padding:8px 12px;margin-left:6px;">Excluir</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -222,7 +238,7 @@
                     <th>Endereço</th>
                     <th>CNPJ</th>
                     <th>Status</th>
-                    <th>Ações</th>
+                    <th style="text-align:right;">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -249,14 +265,19 @@
                             <span class="badge badge-danger">🚫 Suspenso</span>
                         <?php endif; ?>
                     </td>
-                    <td style="white-space:nowrap;">
+                    <td style="white-space:nowrap;text-align:right;">
                         <a href="<?= base_url('?route=admin/condominio_editar/' . (int)$c['id']) ?>"
                            class="btn-ci btn-sm btn-outline" style="padding:8px 12px;">Editar</a>
-                        <a href="<?= base_url('?route=superadmin/condominio_toggle/' . (int)$c['id']) ?>"
-                           class="btn-ci btn-sm <?= ((int)($c['ativo'] ?? 1) === 1) ? 'btn-warning' : 'btn-success' ?>"
-                           style="padding:8px 12px;margin-left:6px;">
-                            <?= ((int)($c['ativo'] ?? 1) === 1) ? '⛔ Suspender' : '✅ Reativar' ?>
-                        </a>
+                        <form method="POST" action="<?= base_url('?route=superadmin/condominio_toggle_post') ?>"
+                              class="inline-form">
+                            <input type="hidden" name="condominio_id" value="<?= (int)$c['id'] ?>">
+                            <?= csrf_field() ?>
+                            <button type="submit"
+                                    class="btn-ci btn-sm <?= ((int)($c['ativo'] ?? 1) === 1) ? 'btn-warning' : 'btn-success' ?>"
+                                    style="padding:8px 12px;margin-left:6px;">
+                                <?= ((int)($c['ativo'] ?? 1) === 1) ? '⛔ Suspender' : '✅ Reativar' ?>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -266,6 +287,9 @@
     </div>
 </div>
 
+<style>
+  form.inline-form { display:inline-flex; align-items:center; vertical-align:middle; margin:0; }
+</style>
 <script>
 // Máscara CPF (inline, leve)
 window.__mask_cpf = function(el) {

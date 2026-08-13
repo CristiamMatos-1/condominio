@@ -17,7 +17,29 @@ class Database
             ];
             $this->pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            die('Erro de conexão com o banco de dados: ' . $e->getMessage());
+            // ====================== SEGURANÇA (LGPD) =========================
+            // NUNCA exibimos "Erro de conexão ... mensagem raw" para usuário
+            // final (evita vazar host, nome de banco, versões MySQL, credenciais
+            // em mensagens como "Access denied for user ...@localhost with password").
+            // Fazemos log estruturado apenas no servidor e lançamos exceção
+            // genérica capturada pelo front controller.
+            $logPayload = json_encode([
+                'evento'    => 'db_conexao_falhou',
+                'classe'    => get_class($e),
+                'mensagem'  => $e->getMessage(),
+                'arquivo'   => $e->getFile(),
+                'linha'     => $e->getLine(),
+                'db_host'   => DB_HOST,
+                'db_name'   => DB_NAME,
+                'db_charset'=> DB_CHARSET,
+                'ip'        => $_SERVER['REMOTE_ADDR'] ?? '',
+                'timestamp' => date('c'),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            @error_log('[SEG-DB] ' . ($logPayload ?: 'db conexao falhou'));
+            throw new RuntimeException(
+                'Sistema indisponível no momento (falha ao conectar no banco de dados). '
+                . 'Por favor, tente novamente em alguns instantes ou contate o suporte.'
+            );
         }
     }
 

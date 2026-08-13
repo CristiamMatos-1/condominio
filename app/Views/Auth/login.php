@@ -148,6 +148,7 @@
             <p class="hint" style="margin:8px 0 0 0;font-size:.78rem;text-align:center;color:var(--color-text-muted,#6B7280);">
                 💡 Clique em um dos cards acima para preencher automaticamente o CPF e ativar o campo de senha.
             </p>
+            <?= csrf_field() ?>
         </form>
 
         <footer class="login-footer-ci">
