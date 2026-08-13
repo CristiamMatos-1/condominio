@@ -1,5 +1,11 @@
 <div class="page-header">
-    <h1 class="page-title">Assembleia em Andamento</h1>
+    <h1 class="page-title">
+        <?php if ($statusEncerrada): ?>
+            ✅ Assembleia Encerrada — Resultado Final Oficial
+        <?php else: ?>
+            Assembleia em Andamento
+        <?php endif; ?>
+    </h1>
     <a href="<?= base_url('?route=assembleia/index') ?>" class="btn btn-secondary">↩️ Voltar</a>
 </div>
 
@@ -15,6 +21,10 @@
             <span class="meta-item">⏰ <?= substr($assembleia['horario'], 0, 5) ?></span>
             <?php if ($assembleia['status'] === 'Aberta'): ?>
                 <span class="badge badge-success pulse">🔴 Aberta para Votação</span>
+            <?php elseif ($assembleia['status'] === 'Em Andamento'): ?>
+                <span class="badge badge-warning pulse">🟡 Em Andamento</span>
+            <?php elseif ($statusEncerrada): ?>
+                <span class="badge badge-success" style="background:#065F46;">✅ Encerrada · Apuração Oficial</span>
             <?php else: ?>
                 <span class="badge badge-secondary">Fechada</span>
             <?php endif; ?>
@@ -53,7 +63,7 @@
     </div>
 <?php endif; ?>
 
-<?php if (count($pautas) > 0): ?>
+<?php if (!$statusEncerrada && count($pautas) > 0): ?>
 <div class="section-header mt-4">
     <h2 class="section-title">📑 Votação de Matérias (Pautas)</h2>
 </div>
@@ -144,7 +154,7 @@
 </div>
 <?php endif; ?>
 
-<?php if (count($chapas) > 0): ?>
+<?php if (!$statusEncerrada && count($chapas) > 0): ?>
 <div class="section-header mt-4">
     <h2 class="section-title">🗳️ Eleição - Diretoria</h2>
 </div>
@@ -206,4 +216,8 @@
     <?php endforeach; ?>
 </div>
 <?php endif; ?>
+<?php endif; ?>
+
+<?php if ($statusEncerrada): ?>
+    <?php include __DIR__ . '/partials/_apuracao_final.php'; ?>
 <?php endif; ?>

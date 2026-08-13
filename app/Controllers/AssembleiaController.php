@@ -51,6 +51,7 @@ class AssembleiaController
         }
 
         $condominioId = $assembleia['condominio_id'];
+        tenant_guard($condominioId); // Tenant Isolation OBRIGATÓRIO
         $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $id, $condominioId);
 
         if (empty($unidades) && !isAdmin()) {
@@ -87,6 +88,8 @@ class AssembleiaController
         }
         $presencasCount = $this->assembleiaModel->countPresencas($id);
         $resultadoChapas = $this->chapaModel->getResultadoAssembleia($id);
+        $resultadoPautas = $this->pautaModel->getResultadoApuracao($id);
+        $statusEncerrada = in_array($assembleia['status'], ['Encerrada', 'Fechada'], true);
 
         $this->render('ver', compact(
             'assembleia',
@@ -96,7 +99,9 @@ class AssembleiaController
             'votosPautasUsuario',
             'votosChapasUsuario',
             'presencasCount',
-            'resultadoChapas'
+            'resultadoChapas',
+            'resultadoPautas',
+            'statusEncerrada'
         ));
     }
 
@@ -114,6 +119,12 @@ class AssembleiaController
 
         $usuarioId = $_SESSION['usuario_id'];
         $assembleiaId = $pauta['assembleia_id'];
+        $assembleia   = $this->assembleiaModel->getById($assembleiaId);
+        if ($assembleia) tenant_guard($assembleia['condominio_id']);
+        if ($assembleia && in_array($assembleia['status'], ['Encerrada','Fechada'])) {
+            flashMessage('Votação encerrada. Não é mais possível registrar votos.', 'error');
+            redirect(base_url('?route=assembleia/ver/' . $assembleiaId));
+        }
 
         $unidadeId = (int) ($_POST['unidade_id'] ?? 0);
         $voto = $_POST['voto'] ?? '';
@@ -174,6 +185,12 @@ class AssembleiaController
 
         $usuarioId = $_SESSION['usuario_id'];
         $assembleiaId = $chapa['assembleia_id'];
+        $assembleia   = $this->assembleiaModel->getById($assembleiaId);
+        if ($assembleia) tenant_guard($assembleia['condominio_id']);
+        if ($assembleia && in_array($assembleia['status'], ['Encerrada','Fechada'])) {
+            flashMessage('Votação encerrada. Não é mais possível registrar votos.', 'error');
+            redirect(base_url('?route=assembleia/ver/' . $assembleiaId));
+        }
         $unidadeId = (int) ($_POST['unidade_id'] ?? 0);
 
         $unidades = $this->assembleiaModel->getUnidadesHabilitadasParaVoto($usuarioId, $assembleiaId);
