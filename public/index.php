@@ -40,6 +40,94 @@ if (!function_exists('sanitize')) {
         return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
     }
 }
+// ==========================================================================
+// 🛡️ FALLBACK RBAC + TENANT GUARD (camada dupla! se config.php do servidor
+// nao foi atualizado manualmente — definimos TUDO aqui para evitar
+// "Call to undefined function tenant_guard() / isSuperAdmin()" etc.
+// Obs.: Chamamos flashMessage()/base_url() só se elas existirem.
+// ==========================================================================
+if (!function_exists('isLoggedIn')) {
+    function isLoggedIn(): bool { return isset($_SESSION['usuario_id']); }
+}
+if (!function_exists('perfilUsuario')) {
+    function perfilUsuario(): string {
+        if (!isLoggedIn()) return '';
+        $p = $_SESSION['usuario_perfil'] ?? ($_SESSION['usuario_tipo'] ?? 'morador');
+        if ($p === 'admin') $p = 'super_admin';
+        return (string)$p;
+    }
+}
+if (!function_exists('isSuperAdmin')) {
+    function isSuperAdmin(): bool { return perfilUsuario() === 'super_admin'; }
+}
+if (!function_exists('isAdminCondominio')) {
+    function isAdminCondominio(): bool {
+        $p = perfilUsuario();
+        return $p === 'admin_condominio' || $p === 'super_admin';
+    }
+}
+if (!function_exists('isAdmin')) {
+    function isAdmin(): bool { return isSuperAdmin() || isAdminCondominio(); }
+}
+if (!function_exists('condominioIdSessao')) {
+    function condominioIdSessao(): ?int {
+        if (!isLoggedIn()) return null;
+        if (isSuperAdmin()) return null;
+        $cid = $_SESSION['condominio_id'] ?? null;
+        return $cid === null ? null : (int)$cid;
+    }
+}
+if (!function_exists('tenant_guard')) {
+    function tenant_guard($condominioIdSolicitado): void {
+        $condominioIdSolicitado = (int)$condominioIdSolicitado;
+        if ($condominioIdSolicitado <= 0) return;
+        if (isSuperAdmin()) return;
+        $sess = (int)condominioIdSessao();
+        if ($sess <= 0) {
+            if (function_exists('flashMessage')) {
+                flashMessage('Seu perfil não tem condomínio associado. Contate o suporte.', 'error');
+            }
+            $url = function_exists('base_url') ? base_url('?route=auth/logout') : '?route=auth/logout';
+            header('Location: ' . $url, true, 302); exit;
+        }
+        if ($sess !== $condominioIdSolicitado) {
+            if (function_exists('flashMessage')) {
+                flashMessage('Você não tem permissão para acessar dados de outro condomínio.', 'error');
+            }
+            $url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
+            header('Location: ' . $url, true, 302); exit;
+        }
+    }
+}
+if (!function_exists('requireLogin')) {
+    function requireLogin(): void {
+        if (!isLoggedIn()) {
+            $url = function_exists('base_url') ? base_url('?route=auth/login') : '?route=auth/login';
+            header('Location: ' . $url, true, 302); exit;
+        }
+    }
+}
+if (!function_exists('requireSuperAdmin')) {
+    function requireSuperAdmin(): void {
+        requireLogin();
+        if (!isSuperAdmin()) {
+            if (function_exists('flashMessage')) {
+                flashMessage('Acesso restrito ao Super Administrador.', 'error');
+            }
+            $url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
+            header('Location: ' . $url, true, 302); exit;
+        }
+    }
+}
+if (!function_exists('requireAdmin')) {
+    function requireAdmin(): void {
+        requireLogin();
+        if (!isAdmin()) {
+            $url = function_exists('base_url') ? base_url('?route=assembleia/index') : '?route=assembleia/index';
+            header('Location: ' . $url, true, 302); exit;
+        }
+    }
+}
 
 $route = $_GET['route'] ?? 'auth/login';
 $route = trim($route, '/');
