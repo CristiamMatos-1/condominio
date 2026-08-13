@@ -9,9 +9,99 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <a href="<?= base_url('?route=superadmin/condominio_novo') ?>" class="btn btn-ci btn-primary">＋ Cadastrar Novo Condomínio</a>
-            <a href="<?= base_url('?route=admin/index') ?>" class="btn-ci btn-outline">Painel Admin Geral</a>
+            <a href="<?= base_url('?route=admin/usuarios') ?>" class="btn-ci btn-outline">👥 Usuários / Moradores</a>
+            <a href="<?= base_url('?route=admin/unidades') ?>" class="btn-ci btn-outline">🏠 Unidades (Lotes/Casas)</a>
+            <a href="<?= base_url('?route=admin/procuracoes') ?>" class="btn-ci btn-outline">📝 Procurações</a>
+            <a href="<?= base_url('?route=admin/assembleias') ?>" class="btn-ci btn-outline">🗳️ Assembleias</a>
+            <a href="<?= base_url('?route=admin/index') ?>" class="btn-ci btn-secondary">Painel Admin Geral</a>
         </div>
     </div>
+</div>
+
+<!-- =========================================================
+     GRID DE ACESSO RÁPIDO (Módulos de gestão completa SaaS)
+     ========================================================= -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:12px 0 28px;">
+    <a href="<?= base_url('?route=admin/condominios') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-blue">🏢</div>
+            <h3 class="card-title-ci" style="margin:0;">Condomínios</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Gerenciar todos os condomínios cadastrados. Criar, editar, suspender ou remover.</p>
+            <span style="font-weight:700;color:#1E40AF;">Listar todos →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=superadmin/condominio_novo') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-green">➕</div>
+            <h3 class="card-title-ci" style="margin:0;">Novo Condomínio</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Cadastrar um novo condomínio na plataforma SaaS.</p>
+            <span style="font-weight:700;color:#15803D;">Abrir cadastro →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/usuarios') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-orange">👥</div>
+            <h3 class="card-title-ci" style="margin:0;">Usuários / Gestores</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Editar contas de síndicos, gestores, moradores. Alterar senha, CPF, perfil.</p>
+            <span style="font-weight:700;color:#C2410C;">Listar / Editar todos →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/usuario_novo') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-green">👤</div>
+            <h3 class="card-title-ci" style="margin:0;">Novo Usuário</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Criar morador, gestor(a) ou vínculo de qualquer perfil.</p>
+            <span style="font-weight:700;color:#15803D;">Abrir cadastro →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/unidades') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-purple">🏠</div>
+            <h3 class="card-title-ci" style="margin:0;">Unidades (Lotes/Casas)</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Cadastrar lotes, casas, blocos e vincular ao proprietário/morador.</p>
+            <span style="font-weight:700;color:#7C3AED;">Gerenciar unidades →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/procuracoes') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-blue">📝</div>
+            <h3 class="card-title-ci" style="margin:0;">Procurações</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Vincular representantes para votar em nome de uma unidade.</p>
+            <span style="font-weight:700;color:#1E40AF;">Gerenciar procurações →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/assembleias') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-green">🗳️</div>
+            <h3 class="card-title-ci" style="margin:0;">Assembleias</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Criar assembleias, pautas, chapas, presenças. Abrir/fechar votação.</p>
+            <span style="font-weight:700;color:#15803D;">Gerenciar assembleias →</span>
+        </div>
+    </a>
+    <a href="<?= base_url('?route=admin/index') ?>" class="card-ci" style="text-decoration:none;color:inherit;">
+        <div class="card-header-ci" style="display:flex;align-items:center;gap:12px;">
+            <div class="stat-icon stat-icon-orange">🧭</div>
+            <h3 class="card-title-ci" style="margin:0;">Painel Admin Geral</h3>
+        </div>
+        <div class="card-body-ci">
+            <p style="margin:0 0 10px;color:#6B7280;font-size:.95rem;">Visão clássica do painel administrativo com KPIs e últimos eventos.</p>
+            <span style="font-weight:700;color:#C2410C;">Abrir painel →</span>
+        </div>
+    </a>
 </div>
 
 <!-- Linha 1: KPIs do SaaS -->

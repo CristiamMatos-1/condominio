@@ -47,16 +47,22 @@ class AdminController
 
     // ==================== REDIRECIONAMENTO POR PERFIL ======================
     // Admin_condominio cai no dashboard do tenant.
-    // Super_admin cai no dashboard global do SaaS.
+    // Super_admin: ANTES redirecionava para superadmin/index, agora DEIXA o
+    // Super Admin usar o Painel Admin Geral (listagem geral de modulos) se
+    // ele quiser. Apenas se ele veio de uma rota default vazia sem contexto.
     // =======================================================================
     public function index()
     {
-        // Super admin → preferimos envialo para o dashboard SaaS.
-        if (isSuperAdmin()) {
-            redirect(base_url('?route=superadmin/index'));
-        }
-
+        // Super admin pode usar este dashboard também — só redirect se ele
+        // veio por engano e queremos manter o fluxo inicial. Mas aqui nós
+        // deixamos ele ficar (menu do Painel Admin Geral é útil para gestão
+        // global de usuários, unidades, procurações, assembleias).
         $condominioId = condominioIdSessao();
+        if (!isSuperAdmin() && $condominioId === null) {
+            // admin_condominio sem condominio_id vinculado — tenta log out.
+            flashMessage('Conta de gestor(a) não está vinculada a um condomínio. Contate o suporte.', 'error');
+            redirect(base_url('?route=auth/logout'));
+        }
         $stats = [
             'total_condominios'  => $this->condominioModel->count(1),
             'total_usuarios'     => count($this->usuarioModel->getAll(null, 1, null, $condominioId)),
